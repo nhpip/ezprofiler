@@ -105,10 +105,10 @@ For example, this will profile anything between `start_code_profiling/0` and `st
 def foo() do
    x = function1()
    y = function2()
-   CSCodeProfiler.start_code_profiling()
+   EZCodeProfiler.start_code_profiling()
    bar(x)
    baz(y)
-   CSCodeProfiler.stop_code_profiling()
+   EZCodeProfiler.stop_code_profiling()
 end
 ```
 This will just profile a specific function
@@ -116,14 +116,14 @@ This will just profile a specific function
 def foo() do
    x = function1()
    y = function2()
-   CSCodeProfiler.function_profiling(&bar/1, [x])
+   EZCodeProfiler.function_profiling(&bar/1, [x])
 end
 ```
 Or in a pipelne:
 ```
 def foo(data) do
    x = function1()
-   data |> bar() |> CSCodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
+   data |> bar() |> EZCodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
 end
 
 ```
