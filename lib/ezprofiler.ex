@@ -16,6 +16,7 @@ defmodule EZProfiler do
   alias EZProfiler.TermHelper
   alias EZProfiler.CodeMonitor
 
+  @doc false
   def main(args \\ []) do
     try do
       args
@@ -41,7 +42,8 @@ defmodule EZProfiler do
       e -> IO.puts("error #{inspect(e)}")
     end
   end
-
+  
+  @doc false
   def error(error) do
     IO.puts(~s(#{inspect error}\n))
     help()
@@ -50,6 +52,7 @@ defmodule EZProfiler do
   ##
   ## Sets up the distributed Erlang stuff
   ##
+  @doc false
   def setup_distributed_erlang({args, _, _}) do
     if Keyword.get(args, :help) do
       help()
@@ -159,6 +162,7 @@ defmodule EZProfiler do
   ## from other processes to do things like change state or update the prompt.
   ## This is a special process that acts as a proxy to get these messages
   ##
+  @doc false
   def wait_for_profiler_events(profiler_pid, monitor_pid) do
     my_pid = self()
     spawn(fn ->

@@ -6,14 +6,17 @@ defmodule EZProfiler.TermHelper do
 
   alias EZProfiler
 
+  @doc false
   def get_profiler_mod_fun(mod_fun) do
     format_mod_fun(String.split(mod_fun, ":"))
   end
 
+  @doc false
   def get_actual_pids(_node, []) do
     []
   end
 
+  @doc false
   def get_actual_pids(node, processes) do
     processes = if String.at(processes,0) != "[" do "[" <> processes <> "]" else processes end
 

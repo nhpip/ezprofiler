@@ -16,6 +16,7 @@ defmodule EZProfiler.CodeMonitor do
     ## Still in the escript, get the EZCodeProfiler module and spawn a process
     ## on the target
     ##
+    @doc false
     def init_code_monitor(target_node) do
       my_node = node()
 
@@ -30,6 +31,7 @@ defmodule EZProfiler.CodeMonitor do
     ## Now on the target VM, grab the EZCodeProfiler module data currently loaded
     ## and replace it with the one from the escript. Then wait for the escript to terminate and do the reverse
     ##
+    @doc false
     def do_init_code_monitor(profiler_node, profiler_mod, profiler_bin) do
       Node.monitor(profiler_node, true)
 

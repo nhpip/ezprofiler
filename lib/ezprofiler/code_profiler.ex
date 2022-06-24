@@ -19,10 +19,14 @@ defmodule EZProfiler.CodeProfiler do
   use Agent
   alias EZProfiler.ProfilerOnTarget
 
+  @doc false
+  def child_spec(_), do: :ok
+
   ##
   ## In reality not ever called, the Agent is started before the module is loaded to avoid
   ## calls to the module functions from failing if the Agent is not there
   ##
+  @doc false
   def start() do
     Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, label: :any_label} end, name: __MODULE__)
   end
@@ -30,6 +34,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   ## Invoked from the state machine on a user hitting 'c' to start code profiling
   ##
+  @doc false
   def allow_profiling(label) do
     Agent.update(__MODULE__, fn state -> %{state | allow_profiling: true, label: label} end)
   end
@@ -38,6 +43,7 @@ defmodule EZProfiler.CodeProfiler do
   ## When a user hits reset ('r') or a timeout occurs this is called. A subsequent call to
   ## allow_profiling needs to be called again (user hitting 'c')
   ##
+  @doc false
   def disallow_profiling() do
     Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, label: :any_label} end)
   end
@@ -162,6 +168,7 @@ defmodule EZProfiler.CodeProfiler do
     end
   end
 
+  @doc false
   def get() do
     Agent.get(__MODULE__, &(&1))
   end
