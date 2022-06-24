@@ -98,7 +98,7 @@ If specified with the `--directory` option the results can be saved and the last
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
 ### Code Profiling
-This permits the profiling of code dynamically. The user cann decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code.
+This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code.
 
 For example, this will profile anything between `start_code_profiling/0` and `stop_code_profiling/0`
 ```
