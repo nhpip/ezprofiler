@@ -1,16 +1,16 @@
-# csprofiler
+# ezprofiler
 
 Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`.
 
 ## Overview
-The `csprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
+The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
 
 ### Process Profiling
 This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. A useful process is `ranch` this will follow the spawned processes that are created on an inbound request.
 
 For example:
 ```
-$ ./csprofiler --node cs@localhost --processes ranch --sos --mf "_:_"
+$ ./ezprofiler --node myapp@localhost --processes name --sos --mf "_:_"
 
 Options:
 
@@ -134,11 +134,11 @@ Execute `mix escript.build`
 
 ## Usage
 ```
-csprofiler --help
+ezprofiler --help
 
-csprofiler:
+ezprofiler:
 
- --node [node]: the Erlang VM you want tracing on (e.g. cs@localhost)
+ --node [node]: the Erlang VM you want tracing on (e.g. myapp@localhost)
 
  --cookie [cookie]: the VM cookie (optional)
 
