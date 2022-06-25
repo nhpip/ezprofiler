@@ -1,17 +1,17 @@
-# ezprofiler
+# (ezprofiler)
 
 Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. This runs as a stand-alone `escript` for both for simplicity of use and to minimize impact on the target VM.
 
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
 
-#### Process Profiling 
+### Process Profiling 
 Attach the profiler to specific processes, registered names or pg/pg2 groups. When profiling starts those processes will be traced. The selection of pg vs pg2 is based on the OTP release, see `@pg_otp_version` in `lib/ezprofiler/term_helper.ex` if you wish to change that behavior.
 
-#### Code Profiling
+### Code Profiling
 The process option can be omitted. Instead the code can be decorated with profiling start/stop functions. In this case, to simplify the analysis, only a single (the first) process to git that code block will be monitored. This is useful in, for example, web-based applications where 100's of processes maybe spawned and invoke the same code at the same time.
 
-### Process Profiling
+## Process Profiling
 This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. A useful process is `ranch` this will follow the spawned processes that are created on an inbound request.
 
 For example:
@@ -103,7 +103,7 @@ If specified with the `--directory` option the results can be saved and the last
 
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
-### Code Profiling
+## Code Profiling
 This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the file `priv/ezcodeprofiler.ex` should be included in your application. This module (`EZProfiler.CodeProfiler`) contains stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is stil minimal as only a single process will be monitored at a time. Once `ezprofiler` terminates the original "stub" module is restored to once again enuring zero run-time cost.
 
 For example, this will profile anything between `start_code_profiling/0` and `stop_code_profiling/0`
