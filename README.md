@@ -5,8 +5,8 @@ Provides a simple to use profiling mechanism to inspect the behavior of an appli
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
 
-#### Process profiling 
-Attach the profiler to specific processes, registered names or pg//pg2 groups. When profiling starts those processes will be traced.
+#### Process Profiling 
+Attach the profiler to specific processes, registered names or pg/pg2 groups. When profiling starts those processes will be traced. The selection of pg vs pg2 is based on the OTP release, see `@pg_otp_version` in `lib/ezprofiler/term_helper.ex` if you wish to change that behavior.
 
 #### Code Profiling
 The process identifier can be omitted. Instead the code can be decorated with profiling start/stop functions. In this case, to simplify the analysis, only a single (the first) process to git that code block will be monitored. This is useful in, for example, web-based applications where 100's of processes maybe spawned and invoke the same code at the same time.
