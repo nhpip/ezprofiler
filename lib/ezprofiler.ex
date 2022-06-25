@@ -1,12 +1,19 @@
 defmodule EZProfiler do
-  @moduledoc """
-  Entry module for the profiler that exclusively runs in the escript.
-  It parses the configuration, sets up distributed Erlang and connects to
-  the target application/VM.
 
-  Then it gets the remaining optional configuration, launches two processes on
-  the target VM, a proxy process on the escript node and waits for user input
+  @readme  File.read!("README.md")
+
+  @moduledoc """
+  #{@readme}
   """
+
+  ##
+  ##  Entry module for the profiler that exclusively runs in the escript.
+  ##  It parses the configuration, sets up distributed Erlang and connects to
+  ##  the target application/VM.
+  ##
+  ##  Then it gets the remaining optional configuration, launches two processes on
+  ##  the target VM, a proxy process on the escript node and waits for user input
+  ##
 
   @max_profile_time 60 # 60 seconds
   @waiting_prompt "waiting.."
