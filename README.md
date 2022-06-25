@@ -5,6 +5,12 @@ Provides a simple to use profiling mechanism to inspect the behavior of an appli
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
 
+#### Process profiling 
+Attach the profiler to specific processes, registered names or pg//pg2 groups. When profiling starts those processes will be traced.
+
+#### Code Profiling
+The process identifier can be omitted. Instead the code can be decorated with profiling start/stop functions. In this case, to simplify the analysis, only a single (the first) process to git that code block will be monitored. This is useful in, for example, web-based applications where 100's of processes maybe spawned and invoke the same code at the same time.
+
 ### Process Profiling
 This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. A useful process is `ranch` this will follow the spawned processes that are created on an inbound request.
 
@@ -18,7 +24,7 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom), e.g. "c pvadmin"
+     'c' "label"to enable code profiling (once) for label (an atom), e.g. "c special_atom"
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -98,7 +104,7 @@ If specified with the `--directory` option the results can be saved and the last
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
 ### Code Profiling
-This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code.
+This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the file `priv/ezcodeprofiler.ex` should be included in your application. This module contains stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is stil miinimal as only a single process will be monitored at a time.
 
 For example, this will profile anything between `start_code_profiling/0` and `stop_code_profiling/0`
 ```
@@ -142,7 +148,7 @@ ezprofiler:
 
  --cookie [cookie]: the VM cookie (optional)
 
- --processes [pid or reg_name]: the remote process pid (e.g. "<0.249.0>") or registered name you want to trace (other options ranch or pg2 group)
+ --processes [pid or reg_name]: the remote process pid (e.g. "<0.249.0>") or registered name you want to trace (other options ranch or pg/pg2 group)
 
  --sos: if present will apply tracing to any process spawned by the one defined in --process
 
@@ -151,7 +157,7 @@ ezprofiler:
 
  --directory: where to store the results
  
- --maxtime: the maximum time we allow profiling for (default 20 seconds)
+ --maxtime: the maximum time we allow profiling for (default 60 seconds)
 
  --profiler: one of eprof, cprof or fprof, default eprof
 
