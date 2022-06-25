@@ -1,8 +1,10 @@
 defmodule EZProfiler.TermHelper do
   @moduledoc """
-  This module contains helper functions to convert registered process names, pg2 names etc
+  This module contains helper functions to convert registered process names, pg2/pg names etc
   into actual pids. It also converts modules and functions into something usable
   """
+
+  @pg_otp_version 23   # The OTP release where PG was introduced
 
   alias EZProfiler
 
@@ -63,7 +65,7 @@ defmodule EZProfiler.TermHelper do
           res
         else
           _ ->
-            with {:ok,res} <- get_pg2_rpc(node, term)
+            with {:ok,res} <- get_pg_pg2_rpc(node, term)
               do
               res
             else
@@ -85,10 +87,11 @@ defmodule EZProfiler.TermHelper do
     end
   end
 
-  defp get_pg2_rpc(node, term) do
-    case :rpc.call(node, :pg2, :get_local_members, [term]) do
+  defp get_pg_pg2_rpc(node, term) do
+    mod = if (:erlang.system_info(:otp_release) |> List.to_integer()) >= @pg_otp_version, do: :pg, else: :pg2
+    case :rpc.call(node, mod, :get_local_members, [term]) do
       res when is_list(res) -> {:ok, res}
-      _ -> {:error,term}
+      _ -> {:error, term}
     end
   end
 

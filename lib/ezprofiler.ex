@@ -8,7 +8,7 @@ defmodule EZProfiler do
   the target VM, a proxy process on the escript node and waits for user input
   """
 
-  @max_profile_time 20 # 20 seconds
+  @max_profile_time 60 # 60 seconds
   @waiting_prompt "waiting.."
   @profiling_prompt "profiling"
 
@@ -149,7 +149,7 @@ defmodule EZProfiler do
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' \"label\"to enable code profiling (once) for label (an atom), e.g. \"c pvadmin\"
+     'c' \"label\"to enable code profiling (once) for label (an atom), e.g. \"c mylabel\"
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -468,7 +468,7 @@ defmodule EZProfiler do
     )
 
     IO.puts(" --directory: where to store the results\n")
-    IO.puts(" --maxtime: the maximum time we allow profiling for (default 20 seconds)\n")
+    IO.puts(" --maxtime: the maximum time we allow profiling for (default 60 seconds)\n")
     IO.puts(" --profiler: one of eprof, cprof or fprof, default eprof\n")
     IO.puts(" --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof\n")
     IO.puts(" --help: this page\n")
