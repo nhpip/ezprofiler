@@ -1,14 +1,17 @@
 defmodule EZProfiler.CodeMonitor do
-   @moduledoc """
-    This module is loaded from the escript on to the target VM  and a process is spawned.
-    The sole purpose of this process is to wait for a node_down event indicating that the escript is gone
-    and to clean things up. Specifically to swap out the EZCodeProfiler module with the correct one.
 
-    In a nutshell there are 2 EZCodeProfiler modules. One on the target VM that is basically full of
-    stub functions, and one contained in the escript that actually does work. When the escript starts and connects
-    we need to load the version contained in the escript onto the target and then load the correct one back when
-    the escript terminates
-    """
+   @moduledoc false
+
+  ##
+  ##  This module is loaded from the escript on to the target VM  and a process is spawned.
+  ##  The sole purpose of this process is to wait for a node_down event indicating that the escript is gone
+  ##  and to clean things up. Specifically to swap out the EZCodeProfiler module with the correct one.
+  ##
+  ##  In a nutshell there are 2 EZCodeProfiler modules. One on the target VM that is basically full of
+  ##  stub functions, and one contained in the escript that actually does work. When the escript starts and connects
+  ##  we need to load the version contained in the escript onto the target and then load the correct one back when
+  ##  the escript terminates
+  ##
 
     alias EZProfiler
 

@@ -1,9 +1,12 @@
 defmodule EZProfiler.TermHelper do
-  @moduledoc """
-  This module contains helper functions to convert registered process names, pg2/pg names etc
-  into actual pids. It also converts modules and functions into something usable
-  """
 
+  @moduledoc false
+
+  ##
+  ##  This module contains helper functions to convert registered process names, pg2/pg names etc
+  ##  into actual pids. It also converts modules and functions into something usable
+  ##
+ 
   @pg_otp_version 23   # The OTP release where PG was introduced
 
   alias EZProfiler

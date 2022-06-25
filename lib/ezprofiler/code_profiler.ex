@@ -1,10 +1,10 @@
 defmodule EZProfiler.CodeProfiler do
   @moduledoc """
-  This module handles code profiling. The user hits 'c' or 'c label' and any process who's code calls the function
+  This module handles code profiling. The user hits 'c' or 'c label' and any process whose code calls the function
   'EZCodeProfiler.start_profiling' will be profiled until 'EZCodeProfiler.stop_profiling` is called. Only a single
-  process at a time can be profiled.
+  process at a time can be profiled. Other profiling functions allow for pipe profiling and function profiling.
 
-  The module is loaded from the escrit, replacing the one in the release, the reverse happens when the escript terminates.
+  The module is loaded from the escript, replacing the one in the release, the reverse happens when the escript terminates.
   The module in the release has functions like:
 
     def start_profiling() do

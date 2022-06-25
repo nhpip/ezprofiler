@@ -1,10 +1,13 @@
 defmodule EZProfiler.ProfilerOnTarget do
-  @moduledoc """
-  This module is loaded from the escript onto the target VM and a process is spawned.
-  This process is a gen_statem, it waits for user events/messages from the escript and does the profiling work.
 
-  This process terminates and the module is unloaded when the escript terminates
-  """
+  @moduledoc false
+
+  ##
+  ## This module is loaded from the escript onto the target VM and a process is spawned.
+  ## This process is a gen_statem, it waits for user events/messages from the escript and does the profiling work.
+  ##
+  ## This process terminates and the module is unloaded when the escript terminates
+  ##
 
   @behaviour :gen_statem
 
