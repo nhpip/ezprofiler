@@ -104,17 +104,17 @@ If specified with the `--directory` option the results can be saved and the last
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
 ### Code Profiling
-This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the file `priv/ezcodeprofiler.ex` should be included in your application. This module contains stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is stil miinimal as only a single process will be monitored at a time.
+This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the file `priv/ezcodeprofiler.ex` should be included in your application. This module (`EZProfiler.CodeProfiler`) contains stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is stil miinimal as only a single process will be monitored at a time.
 
 For example, this will profile anything between `start_code_profiling/0` and `stop_code_profiling/0`
 ```
 def foo() do
    x = function1()
    y = function2()
-   EZCodeProfiler.start_code_profiling()
+   EZProfiler.CodeProfiler.start_code_profiling()
    bar(x)
    baz(y)
-   EZCodeProfiler.stop_code_profiling()
+   EZProfiler.CodeProfiler.stop_code_profiling()
 end
 ```
 This will just profile a specific function
@@ -122,18 +122,52 @@ This will just profile a specific function
 def foo() do
    x = function1()
    y = function2()
-   EZCodeProfiler.function_profiling(&bar/1, [x])
+   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x])
 end
 ```
 Or in a pipelne:
 ```
 def foo(data) do
    x = function1()
-   data |> bar() |> EZCodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
+   data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
 end
 
 ```
-### NEED TO COMPLETE ###
+To invoke `ezprofiler` can be started as follows:
+```
+$ ./ezprofiler --node myapp@localhost
+
+Options:
+
+     's' to start profiling when 'waiting'
+     'a' to get profiling results when 'profiling'
+     'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
+     'c' to enable code profiling (once)
+     'c' "label"to enable code profiling (once) for label (an atom), e.g. "c pvadmin"
+     'u' "M:F" to update the module and function to trace (only with eprof)
+     'v' to view last saved results file
+     'g' for debugging, returns the state on the target VM
+     'h' this help text
+     'q' to exit
+
+waiting..(1)> c
+waiting..(2)>
+Code profiling enabled
+
+waiting..(2)>
+Got a start profiling from source code with label of :no_label
+
+waiting..(2)>
+profiling(2)>
+profiling(2)>
+
+****** Process <9500.793.0>    -- 100.00 % of profiled time ***
+FUNCTION                                                                                                   CALLS        %   TIME  [uS / CALLS]
+--------                                                                                                   -----  -------   ----  [----------]
+'Elixir.MyServer.CommitLog.Protocol.Encoder.Server.Types.UserInfo':encode/1                                 5     0.00      0  [      0.00]
+'Elixir.MyServer.Subscriber.Notification':new/3                                                             1     0.00      0  [      0.00]
+...SNIP...   
+```
 
 ## Compiling
 Execute `mix escript.build`
