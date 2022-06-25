@@ -170,7 +170,31 @@ FUNCTION                                                                        
 'Elixir.MyServer.Subscriber.Notification':new/3                                                             1     0.00      0  [      0.00]
 ...SNIP...   
 ```
+A label can be set as follows:
+```
+EZProfiler.CodeProfiler.start_code_profiling(:my_label)
 
+case do_send_email(email, private_key) do
+  :ok ->
+     EZProfiler.CodeProfiler.stop_code_profiling()
+```
+Then:
+```
+waiting..(4)> c my_label
+waiting..(5)>
+Code profiling enabled with a label of :my_label
+
+waiting..(5)>
+Got a start profiling from source code with label of :my_label
+```
+Alternatively the label can be replaced with a lambda that should return a label (atom) if tracing is to be started, or the atom `:nok` if it isn't:
+```
+EZProfiler.CodeProfiler.start_code_profiling(fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
+
+case do_send_email(email, private_key) do
+  :ok ->
+     EZProfiler.CodeProfiler.stop_code_profiling()
+```
 ## Compiling
 Execute `mix escript.build`
 
