@@ -132,6 +132,20 @@ def foo() do
    EZProfiler.CodeProfiler.function_profiling(&bar/1, [x])
 end
 ```
+Or with a label / anonymous function:
+```
+def foo() do
+   x = function1()
+   y = function2()
+   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], :my_label)
+end
+
+def foo() do
+   x = function1()
+   y = function2()
+   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
+ end
+```
 Or in a pipelne:
 ```
 def foo(data) do
