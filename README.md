@@ -13,9 +13,15 @@ The process option can be omitted. Instead the code can be decorated with profil
 ## Process Profiling
 This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. Included is the option to specify `ranch` in the `--processes` option. This makes tracing of the popular `Ranch` socket acceptor pool, and specified with the `--sos` and `--sol` options will follow the spawned processes that are created on an inbound TCP accept requests.
 
+The list of processes can be a simple process id, a registered name, pg/pg2 group or a list. THey must be enclosed in double quotes, for example: 
+
+`--processes "<0.1278.0>"`
+`--processes ":my_reg_name"`
+`--processes "[:ranch, <0.777.0>, :my_reg_name, {:xyz, :server_a_pg2}]"`
+
 For example:
 ```
-$ ./ezprofiler --node myapp@localhost --processes name --sos --mf "_:_"
+$ ./ezprofiler --node myapp@localhost --processes :my_reg_pid --sos --mf "_:_"
 
 Options:
 
