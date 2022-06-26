@@ -8,6 +8,7 @@ defmodule EZProfiler.MixFile do
       elixir: "~> 1.11",
       escript: escript(),
       package: package(),
+      description: description(),
       name: "ezprofiler",
       deps: deps()
     ]
@@ -42,7 +43,7 @@ defmodule EZProfiler.MixFile do
 
   defp package() do
     [
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
+      files: ~w(lib mix.exs README* LICENSE*),
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/nhpip/ezprofiler"}
     ]
