@@ -23,27 +23,24 @@ defmodule EZProfiler.TermHelper do
 
   @doc false
   def get_actual_pids(node, processes) do
-    processes = if String.at(processes,0) != "[" do "[" <> processes <> "]" else processes end
 
-    {_,_,process_list} =  processes
-                          |> String.replace("{","{,")
-                          |> String.replace("}",",}")
-                          |> String.split([",","[","]"])
-                          |> Enum.filter(fn e -> e != "" end)
-                          |> Enum.reduce({false,[],[]},
-                               fn("{",{false,_ct,acc}) -> {true,[],acc};
-                                 ("}",{true,ct,acc}) -> {false,[],[Enum.reverse(ct)|acc]};
-                                 (item,{true,ct,acc}) -> {true,[format_registered_name_or_module(item)|ct],acc};
-                                 (item,{false,ct,acc}) -> {false,ct,[item|acc]}
-                               end)
+    processes = if String.at(processes, 0) != "[", do: "[#{processes}]", else: processes
 
-    process_list = process_list
-                   |> Enum.map(fn p when is_list(p) -> List.to_tuple(p); p ->p end)
-                   |> Enum.map(fn p -> get_remote_pid(node, p) end)
+    process_list =
+        processes
+        |> String.replace("<", "'<")
+        |> String.replace(">", ">'")
+        |> Code.eval_string()
+        |> elem(0)
+        |> Enum.map(&(get_remote_pid(node, &1)))
+        |> List.flatten()
+
+    IO.puts("\nProcesses to monitor: #{inspect(process_list)}")
+
     process_list
   end
 
-  defp get_remote_pid(node, "ranch") do
+  defp get_remote_pid(node, :ranch) do
     with {:ok, ranch_pid} <- get_pid_rpc(node, :ets, :select, [:ranch_server, [{{{:conns_sup,:_},:'$1'}, [], [:'$1']}]]) do
       ranch_pid
     else
@@ -73,7 +70,7 @@ defmodule EZProfiler.TermHelper do
               res
             else
               _ ->
-                IO.puts("\nProcesses may no longer be valid...exiting\n")
+                IO.puts("\nProcesses #{pid_or_reg} may no longer be valid...exiting\n")
                 []
             end
         end
