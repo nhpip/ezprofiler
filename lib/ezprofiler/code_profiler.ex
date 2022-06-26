@@ -168,7 +168,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
+        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(y), do: :my_label, else: :nok end)
       end
 
   Then in the `ezprofiler` console:
@@ -218,13 +218,64 @@ defmodule EZProfiler.CodeProfiler do
   ##
   ##  [1, :xxx, 2, 3, 4] |> Enum.filter(fn e -> is_integer(e) end) |> pipe_profiling(&Enum.sum/1,[]) |> Kernel.+(1000)
   ##
+  @doc """
+  Starts profiling a function in a pipe.
+
+  ## Example
+
+      def foo(data) do
+         x = function1()
+         data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
+      end
+
+  NOTE: It is advisable to filter results with `--mf` or the `u` option in the `ezprofiler` console
+
+  """
   def pipe_profiling(arg, fun, args) do
     pipe_profiling(arg, fun, args, :no_label)
   end
 
-  def pipe_profiling(arg, fun, args, label) when is_atom(label) do
+  @doc """
+  Starts profiling a function in a pipe using label (atom) or an anonymous function to target the results.
+
+  ## Example (atom)
+
+      def foo(data) do
+         x = function1()
+         data
+         |> bar()
+         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x], :my_label)
+         |> function2()
+      end
+
+
+  ## Example (anonymous function)
+
+      def foo(data) do
+         x = function1()
+         data
+         |> bar()
+         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x], fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
+         |> function2()
+      end
+
+  Then in the `ezprofiler` console:
+
+      waiting..(4)> c my_label
+      waiting..(5)>
+      Code profiling enabled with a label of :my_label
+
+      waiting..(5)>
+      Got a start profiling from source code with label of :my_label
+
+  NOTE: If anonymous function is used it must return an atom (label) to allow profiling ot the atom `:nok` to not profile.
+  
+  NOTE: It is advisable to filter results with `--mf` or the `u` option in the `ezprofiler` console
+
+  """
+  def pipe_profiling(arg, fun, args, label_or_fun) when is_atom(label_or_fun) do
     pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, label}, state) end)
+    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, label_or_fun}, state) end)
     receive do
       :code_profiling_started -> :code_profiling_started
       :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
