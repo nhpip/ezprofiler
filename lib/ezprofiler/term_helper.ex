@@ -43,6 +43,14 @@ defmodule EZProfiler.TermHelper do
     process_list
   end
 
+  defp get_remote_pid(node, "ranch") do
+    with {:ok, ranch_pid} <- get_pid_rpc(node, :ets, :select, [:ranch_server, [{{{:conns_sup,:_},:'$1'}, [], [:'$1']}]]) do
+      ranch_pid
+    else
+      _ -> raise("invalid process")
+    end
+  end
+
   defp get_remote_pid(node, pid_or_reg) do
     pid_or_reg = try do
       Kernel.to_charlist(pid_or_reg)
