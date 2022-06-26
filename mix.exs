@@ -1,4 +1,4 @@
-defmodule CSProfiler.MixFile do
+defmodule EZProfiler.MixFile do
   use Mix.Project
 
   def project do
