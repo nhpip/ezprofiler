@@ -11,7 +11,7 @@ Attach the profiler to specific processes, registered names or pg/pg2 groups. Wh
 The process option can be omitted. Instead the code can be decorated with profiling start/stop functions. In this case, to simplify the analysis, only a single (the first) process to git that code block will be monitored. This is useful in, for example, web-based applications where 100's of processes maybe spawned and invoke the same code at the same time.
 
 ## Process Profiling
-This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. A useful process is `ranch` this will follow the spawned processes that are created on an inbound request.
+This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. Included is the option to specify `ranch` in the `--processes` option. This makes tracing of the popular `Ranch` socket acceptor pool, and specified with the `--sos` and `--sol` options will follow the spawned processes that are created on an inbound TCP accept requests.
 
 For example:
 ```
