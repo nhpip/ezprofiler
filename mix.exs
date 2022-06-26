@@ -7,6 +7,8 @@ defmodule EZProfiler.MixFile do
       version: "0.1.0",
       elixir: "~> 1.11",
       escript: escript(),
+      package: package(),
+      name: "ezprofiler",
       deps: deps()
     ]
   end
@@ -29,6 +31,20 @@ defmodule EZProfiler.MixFile do
   defp deps do
     [
      {:ex_doc, "~> 0.28.4", only: :dev, runtime: false}
+    ]
+  end
+
+  defp description() do
+    "Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. 
+     Under the hood it utilizes Erlang's profiler tools, namely eprof, the default, fprof or cprof. 
+     This runs as a stand-alone `escript` for both for ease of use and to minimize impact on the target VM."
+  end
+
+  defp package() do
+    [
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/nhpip/ezprofiler"}
     ]
   end
 
