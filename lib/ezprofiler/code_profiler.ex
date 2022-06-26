@@ -225,7 +225,10 @@ defmodule EZProfiler.CodeProfiler do
 
       def foo(data) do
          x = function1()
-         data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
+         data
+         |> bar()
+         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x])
+         |> function2()
       end
 
   NOTE: It is advisable to filter results with `--mf` or the `u` option in the `ezprofiler` console
@@ -269,7 +272,7 @@ defmodule EZProfiler.CodeProfiler do
       Got a start profiling from source code with label of :my_label
 
   NOTE: If anonymous function is used it must return an atom (label) to allow profiling ot the atom `:nok` to not profile.
-  
+
   NOTE: It is advisable to filter results with `--mf` or the `u` option in the `ezprofiler` console
 
   """
