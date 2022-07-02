@@ -38,7 +38,7 @@ defmodule EZProfiler do
              maxtime: :integer,
              sos: :boolean,
              sort: :string,
-             embedded: :boolean,
+             cpfo: :boolean,
              help: :boolean
            ]
          )
@@ -113,10 +113,19 @@ defmodule EZProfiler do
           :no_sort
       end
 
-      ## Get the rest of the configuration
-      set_on_spawn = Keyword.get(opts, :sos, false)
-      directory = Keyword.get(opts, :directory, false)
-      maxtime = Keyword.get(opts, :maxtime, @max_profile_time) * 1000
+      ## Set the configuration
+      new_opts = %{
+          target_node: target_node,
+          actual_processes: actual_processes,
+          profiler: profiler,
+          sort: sort,
+          mod_fun: mod_fun,
+          process_configuration: process_cfg,
+          set_on_spawn: Keyword.get(opts, :sos, false),
+          directory: Keyword.get(opts, :directory, false),
+          max_time: Keyword.get(opts, :maxtime, @max_profile_time) * 1000,
+          code_profiler_fun_only: Keyword.get(opts, :cpfo, false)
+      }
 
       ## Load the module CodeMonitor on the target and spawn a process on the target that executes that code
       ## See the module CodeMonitor doc, for more info, but this is a simple process that cleans things up when the escript terminates
@@ -127,7 +136,8 @@ defmodule EZProfiler do
       ## Load the module ProfilerOnTarget on the target and spawn a gen_statem on the target that executes that code
       ## See the module ProfilerOnTarget doc for more info, but this is the process that does the actual profiling
       remote_module_load(target_node, ProfilerOnTarget)
-      profiler_pid = ProfilerOnTarget.init_profiling(target_node, actual_processes, process_cfg, mod_fun, set_on_spawn, directory, maxtime, profiler, sort)
+
+      profiler_pid = ProfilerOnTarget.init_profiling(new_opts)
 
       print_headers()
 
@@ -382,6 +392,9 @@ defmodule EZProfiler do
       :invalid_profiler ->
         IO.puts("\nInvalid profiler\n")
 
+     {:message, message}  ->
+        IO.puts("\n#{inspect(message)}\n")
+
       {:stopped_profiling, [filename]} ->
         IO.puts("\nStopped profiling, results are in file #{filename}, press 'v' to view them\n")
 
@@ -478,6 +491,7 @@ defmodule EZProfiler do
     IO.puts(" --maxtime: the maximum time we allow profiling for (default 60 seconds)\n")
     IO.puts(" --profiler: one of eprof, cprof or fprof, default eprof\n")
     IO.puts(" --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof\n")
+    IO.puts(" --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls\n")
     IO.puts(" --help: this page\n")
 
     System.halt()
