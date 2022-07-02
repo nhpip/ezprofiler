@@ -33,16 +33,32 @@ defmodule EZProfiler.CodeProfiler do
 
   end
 
-  def function_profiling(fun, args) do
+  def function_profiling(fun) do
+    Kernel.apply(fun, [])
+  end
+
+  def function_profiling(fun, args) when is_list(args) do
     Kernel.apply(fun, args)
+  end
+
+  def function_profiling(fun, _label_or_fun)  do
+    Kernel.apply(fun, [])
   end
 
   def function_profiling(fun, args, _label_or_fun)  do
     Kernel.apply(fun, args)
   end
 
-  def pipe_profiling(arg, fun, args) do
+  def pipe_profiling(arg, fun) do
+    Kernel.apply(fun, [arg])
+  end
+
+  def pipe_profiling(arg, fun, args) when is_list(args) do
     Kernel.apply(fun, [arg|args])
+  end
+
+  def pipe_profiling(arg, fun, _label_or_fun) do
+    Kernel.apply(fun, [arg])
   end
 
   def pipe_profiling(arg, fun, args, _label_or_fun) do

@@ -39,7 +39,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def reset_profiling(target_node) do
-    :gen_statem.cast({:cstop_profiler, target_node}, :reset)
+    :gen_statem.call({:cstop_profiler, target_node}, :reset)
   end
 
   @doc false
@@ -53,13 +53,13 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def start_code_profiling(pid, label) do
-    :gen_statem.cast(:cstop_profiler, {:code_start, pid, label})
+  def start_code_profiling(pid, fun, label) do
+    :gen_statem.cast(:cstop_profiler, {:code_start, pid, fun, label})
   end
 
   @doc false
   def stop_code_profiling() do
-    :gen_statem.cast(:cstop_profiler, :code_stop)
+    :gen_statem.call(:cstop_profiler, :code_stop)
   end
 
   @doc false
@@ -67,42 +67,50 @@ defmodule EZProfiler.ProfilerOnTarget do
     :gen_statem.call({:cstop_profiler, target_node}, :get_state)
   end
 
+  @doc false
+  def ping() do
+    :gen_statem.call(:cstop_profiler, :ping)
+  end
+
   ##
   ## On the escript, do some init work and starts the gen_statem process on
   ## the target VM
   ##
   @doc false
-  def init_profiling(target_node, processes, process_configuration, mod_fun, sos, directory, max_time, profiler, sort) do
+  def init_profiling(opts) do
     my_node = node()
     my_pid = self()
 
-    [profile_module, profile_function] = mod_fun
+    [profile_module, profile_function] = opts.mod_fun
 
     state = %{profiler_node: my_node,
+      target_node: opts.target_node,
       profiler_pid: my_pid,
-      pids_to_profile: processes,
-      pids_to_profile_cfg: process_configuration,
+      pids_to_profile: opts.actual_processes,
+      pids_to_profile_cfg: opts.process_configuration,
       profile_module: profile_module,
       profile_function: profile_function,
-      set_on_spawn: sos,
-      results_directory: directory,
+      code_profile_fun: nil,
+      code_profiler_fun_only: opts.code_profiler_fun_only,
+      set_on_spawn: opts.set_on_spawn,
+      results_directory: opts.directory,
       current_results_filename: "",
       current_label:  :any_label,
       results_file_index: 0,
-      max_profiling_time: max_time,
+      max_profiling_time: opts.max_time,
       current_state: :waiting,          # One of :waiting or :profiling
       profiling_type_state: :normal,     # One of :normal or :code
       code_tracing_pid: nil,
       pending_code_profiling: false,
-      sort: sort,
-      profiler: profiler,
+      sort: opts.sort,
+      profiler: opts.profiler,
       monitors: [],
       timer_ref: nil,
       beam_profiler_pid: nil,
     }
 
     ## Starts the state machine process on the target VM
-    start(target_node, state)
+    start(state)
   end
 
   ##
@@ -111,8 +119,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   ## the gen_statem process. Should revisit
   ##
   @doc false
-  def start(target_node, state) do
-    Node.spawn(target_node, fn ->
+  def start(state) do
+    Node.spawn(state.target_node, fn ->
       {:ok, pid} = :gen_statem.start(__MODULE__, [state], [])
       send(state.profiler_pid, pid)
     end)
@@ -144,6 +152,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event({:call, from}, :get_state, _any_state, state) do
     {:keep_state, state, [{:reply, from, state}]}
+  end
+
+  @doc false
+  def handle_event({:call, from}, :ping, _any_state, state) do
+    {:keep_state, state, [{:reply, from, :ok}]}
   end
 
   @doc false
@@ -204,20 +217,20 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, :reset, :profiling, %{profiler_node: profiler_node, profiler: profiler, monitors: monitors} = state) do
+  def handle_event({:call, from}, :reset, :profiling, %{profiler_node: profiler_node, profiler: profiler, monitors: monitors} = state) do
     Enum.each(monitors, &Process.demonitor(&1))
     do_profiling_stop(profiler)
     do_state_change(profiler_node, :waiting)
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
-  def handle_event(:cast, :reset, _other_state, %{profiler_node: profiler_node} = state) do
+  def handle_event({:call, from}, :reset, _other_state, %{profiler_node: profiler_node} = state) do
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:keep_state, %{state | pending_code_profiling: false}}
+    {:keep_state, %{state | pending_code_profiling: false, code_profile_fun: nil}, [{:reply, from, :ok}]}
   end
 
   @doc false
@@ -241,22 +254,22 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, {:code_start, pid, label}, :waiting, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:code_start, pid, fun, label}, :waiting, %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :code_start, [label])
-    case do_profiling([pid], %{state | profiling_type_state: :code, current_label: label, code_tracing_pid: pid}) do
-      {:continue, new_state} -> {:next_state, :profiling, new_state}
-      {_, new_state} -> {:stop, :normal, new_state}
+    case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, current_label: label, code_tracing_pid: pid}) do
+      {:continue, new_state} -> {:next_state, :profiling, %{new_state | code_profile_fun: nil}}
+      {_, new_state} -> {:stop, :normal, %{new_state | code_profile_fun: nil}}
     end
   end
 
   @doc false
-  def handle_event(:cast, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid} = state) do
     current_label = state.current_label
     respond_to_code(:code, :code_profiling_stopped, [pid])
     profiling_complete(state)
     File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}}
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
@@ -381,7 +394,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   ##
   ## Start profiling if profiler is cprof
   ##
-  defp do_start_profiler_profiling(%{profiler: :cprof, profile_module: mod, profile_function: fun} = _state, _tracing_processes) do
+  defp do_start_profiler_profiling(%{profiler: :cprof} = state, _tracing_processes) do
+    {mod, fun} = get_mf(state)
     :cprof.start(mod, fun)
     :ok
   end
@@ -389,7 +403,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   ##
   ## Start profiling if profiler is eprof
   ##
-  defp do_start_profiler_profiling(%{profiler: :eprof, profile_module: mod, profile_function: fun, set_on_spawn: sos} = _state, tracing_processes) do
+  defp do_start_profiler_profiling(%{profiler: :eprof, set_on_spawn: sos} = state, tracing_processes) do
+    {mod, fun} = get_mf(state)
     with :profiling <- :eprof.start_profiling(tracing_processes, {mod, fun, :_}, [{:set_on_spawn, sos}])
       do
       :ok
@@ -408,6 +423,15 @@ defmodule EZProfiler.ProfilerOnTarget do
     else
       _ -> {:error, :exit}
     end
+  end
+
+  defp get_mf(%{code_profile_fun: fun, code_profiler_fun_only: true} = _state) when is_function(fun) do
+    fun_info = Function.info(fun)
+    {fun_info[:module], fun_info[:name]}
+  end
+
+  defp get_mf(%{profile_module: mod, profile_function: fun} = _state) do
+    {mod, fun}
   end
 
   ##
