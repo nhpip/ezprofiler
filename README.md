@@ -267,7 +267,7 @@ ezprofiler:
      profile_fun2(1..10)
      EZProfiler.CodeProfiler.stop_code_profiling()
       
-     EZProfiler.CodeProfiler.start_code_profiling(fn -> :my_label end)
+     EZProfiler.CodeProfiler.start_code_profiling(fn -> shall_we_profile?() end)
      profile_fun1()
      profile_fun2(1..10)
      EZProfiler.CodeProfiler.stop_code_profiling()
@@ -298,5 +298,5 @@ ezprofiler:
      
      [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], :my_label) |> Enum.sum()
                  
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], fn -> :my_label end) |> Enum.sum()  
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], fn -> shall_we_profile?() end) |> Enum.sum()  
 ```
