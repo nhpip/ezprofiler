@@ -156,7 +156,7 @@ def foo(data) do
 end
 
 ```
-Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. 
+Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
 Code profiling still supports the `--mf` option (or `u` on the menu) to filter the results.
 ```
@@ -218,6 +218,8 @@ case do_send_email(email, private_key) do
   :ok ->
      EZProfiler.CodeProfiler.stop_code_profiling()
 ```
+See below for additional examples.
+
 ## Compiling
 Execute `mix escript.build`
 
@@ -251,3 +253,50 @@ ezprofiler:
  --help: this page
 ```
 
+## Additional Code Profiling Examples
+
+### Code Block Profiling
+```
+     EZProfiler.CodeProfiler.start_code_profiling()
+     profile_fun1()
+     profile_fun2(1..10)
+     EZProfiler.CodeProfiler.stop_code_profiling()
+     
+     EZProfiler.CodeProfiler.start_code_profiling(:my_label)
+     profile_fun1()
+     profile_fun2(1..10)
+     EZProfiler.CodeProfiler.stop_code_profiling()
+      
+     EZProfiler.CodeProfiler.start_code_profiling(fn -> :my_label end)
+     profile_fun1()
+     profile_fun2(1..10)
+     EZProfiler.CodeProfiler.stop_code_profiling()
+```
+### Function Profiling
+```
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0)
+
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, :my_label)
+
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, fn -> shall_we_profile?() end)
+
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10])
+
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], :my_label)
+     
+     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
+```
+### Pipe Profiling
+```
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1) |> Enum.sum()
+
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, :my_label) |> Enum.sum()
+     
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, fn -> shall_we_profile?() end) |> Enum.sum()
+     
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77]) |> Enum.sum()
+     
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], :my_label) |> Enum.sum()
+                 
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], fn -> :my_label end) |> Enum.sum()  
+```
