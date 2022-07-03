@@ -4,7 +4,7 @@ defmodule EZProfiler.MixFile do
   def project do
     [
       app: :ezprofiler,
-      version: "1.1.0",
+      version: "1.1.1",
       elixir: "~> 1.11",
       escript: escript(),
       package: package(),
@@ -37,7 +37,8 @@ defmodule EZProfiler.MixFile do
 
   defp description() do
     "Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. 
-     This runs as a stand-alone `escript` for both for ease of use and to minimize impact on the target VM."
+     This runs as a stand-alone `escript` for both for ease of use and to minimize impact on the target VM.
+     Supports Erlang's eprof, fprof or cprof profilers"
   end
 
   defp package() do
