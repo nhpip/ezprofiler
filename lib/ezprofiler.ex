@@ -39,6 +39,7 @@ defmodule EZProfiler do
              sos: :boolean,
              sort: :string,
              cpfo: :boolean,
+             inline: :string,
              help: :boolean
            ]
          )
@@ -155,6 +156,8 @@ defmodule EZProfiler do
 
       ## Since this "main" process is blocked waiting on user input spawn a process that proxies inbound messages from the target
       wait_for_profiler_events(profiler_pid, monitor_pid)
+
+      if (filename = Keyword.get(opts, :inline, nil)), do: File.touch(filename)
 
       ## Get user input/commands
       wait_for_user_events(state)
