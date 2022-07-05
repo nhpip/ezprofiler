@@ -10,6 +10,7 @@ defmodule EZProfiler.MixFile do
       package: package(),
       description: description(),
       name: "ezprofiler",
+      aliases: aliases(),
       deps: deps()
     ]
   end
@@ -25,6 +26,12 @@ defmodule EZProfiler.MixFile do
       main_module: EZProfiler,
       embed_elixir: false,
       shebang: make_shebang()
+    ]
+  end
+
+  defp aliases do
+    [
+      compile: "escript.build"
     ]
   end
 
