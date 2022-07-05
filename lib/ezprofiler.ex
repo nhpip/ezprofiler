@@ -45,7 +45,7 @@ defmodule EZProfiler do
       |> setup_distributed_erlang() |> start_profiling()
     rescue
       e in ArgumentError -> error(e.message)
-      e in FunctionClauseError -> IO.puts("error: " <> e.message)
+      e in FunctionClauseError -> IO.puts("error: #{inspect(e)}")
       e -> IO.puts("error #{inspect(e)}")
     end
   end
@@ -289,6 +289,10 @@ defmodule EZProfiler do
             display_message(:new_line1)
             wait_for_user_events(state)
 
+          {:get_results_file, pid} ->
+            get_results_file(pid, state)
+            wait_for_user_events(state)
+
           {:state_change, pid, :waiting} ->
             display_message(:new_line1)
             send(pid, :state_change_ack)
@@ -358,7 +362,7 @@ defmodule EZProfiler do
 
   defp view_results_file(%{results_file: filename} = _state) when is_binary(filename) do
     try do
-      File.stream!(filename) |> Enum.each(fn line -> String.trim(line,"\n") |> IO.puts() end)
+      File.stream!(filename) |> Enum.each(&(String.trim(&1, "\n")) |> IO.puts())
       IO.puts("")
     rescue
       _ ->
@@ -366,7 +370,20 @@ defmodule EZProfiler do
     end
   end
 
-  defp view_results_file(_state), do: display_message(:no_file)
+  defp view_results_file(_state), do:
+    display_message(:no_file)
+
+  defp get_results_file(pid, %{results_file: filename} = _state) when is_binary(filename) do
+    try do
+      send(pid, {:profiling_results, filename, File.read!(filename)})
+    rescue
+      _ ->
+        send(pid, {:no_profiling_results, :processing_exception})
+    end
+  end
+
+  defp get_results_file(pid, _state), do:
+    send(pid, {:profiling_results, :no_results_file})
 
   ##
   ## Gets the module's binary code and load it on the target.
@@ -378,7 +395,6 @@ defmodule EZProfiler do
   end
 
   defp display_message(message_details) do
-
     case message_details do
       {:new_line, _} ->
         IO.puts("")
