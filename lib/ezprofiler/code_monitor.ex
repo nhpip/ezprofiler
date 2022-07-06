@@ -38,6 +38,8 @@ defmodule EZProfiler.CodeMonitor do
     def do_init_code_monitor(profiler_node, profiler_mod, profiler_bin) do
       Node.monitor(profiler_node, true)
 
+      :persistent_term.erase({EZProfiler.CodeProfiler, :stub_loaded})
+
       ## Gets the current EZCodeProfiler module data and save it
       {correct_mod, correct_bin, correct_file} = get_code_profiler_module_bin() ## Grabs the stub one shipped with collection server
 

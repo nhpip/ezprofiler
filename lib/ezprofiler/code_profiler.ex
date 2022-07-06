@@ -16,14 +16,18 @@ defmodule EZProfiler.CodeProfiler do
   There is a minimal run-time cost when the module is loaded, as much as a message to an Agent.
   """
 
-  @on_load :xxx
+  @on_load :load_verify
 
   use Agent
   alias EZProfiler.ProfilerOnTarget
 
-  def xxx() do
-    IO.inspect({:real,:code.module_status(__MODULE__)})
-    :ok
+  def load_verify() do
+    try do
+      :persistent_term.get({__MODULE__, :stub_loaded})
+      :no_load
+    rescue
+      _ -> :ok
+    end
   end
 
   @doc false
