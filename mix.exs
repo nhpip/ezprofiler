@@ -31,7 +31,7 @@ defmodule EZProfiler.MixFile do
 
   defp aliases do
     [
-      compile: "escript.build"
+#      compile: "escript.build"
     ]
   end
 
