@@ -260,7 +260,7 @@ defmodule EZProfiler do
        wait_for_user_events(%{state | command_count: count+1})
 
       <<"c", label::binary>> ->
-        label =  String.trim(label) |> String.trim(":") |> String.to_atom()
+        label =  get_label(label) ## String.trim(label) |> String.trim(":") |> String.to_atom()
         ProfilerOnTarget.allow_code_profiling(target_node, label)
         wait_for_user_events(%{state | command_count: count+1})
 
@@ -341,6 +341,15 @@ defmodule EZProfiler do
           _ ->
             wait_for_user_events(state)
         end
+    end
+  end
+
+  defp get_label(label) do
+    try do
+      {new_label, _} = String.trim(label) |> Code.eval_string()
+      new_label
+    rescue
+      _ -> label
     end
   end
 
