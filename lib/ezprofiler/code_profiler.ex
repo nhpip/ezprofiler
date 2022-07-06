@@ -22,7 +22,7 @@ defmodule EZProfiler.CodeProfiler do
   alias EZProfiler.ProfilerOnTarget
 
   def xxx() do
-    IO.inspect({:stub,:code.module_status(__MODULE__)})
+    IO.inspect({:real,:code.module_status(__MODULE__)})
     :ok
   end
 
