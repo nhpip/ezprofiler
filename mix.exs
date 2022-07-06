@@ -3,7 +3,7 @@ defmodule EZProfiler.MixFile do
 
   def project do
     [
-      app: nil,#:ezprofiler,
+      app: :ezprofiler,
       version: "1.1.1",
       elixir: "~> 1.11",
       escript: escript(),
@@ -31,7 +31,7 @@ defmodule EZProfiler.MixFile do
 
   defp aliases do
     [
-      compile: "escript.build"
+#      compile: "escript.build"
     ]
   end
 
