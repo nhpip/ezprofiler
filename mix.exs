@@ -3,7 +3,7 @@ defmodule EZProfiler.MixFile do
 
   def project do
     [
-      app: :ezprofiler,
+      app: nil,#:ezprofiler,
       version: "1.1.1",
       elixir: "~> 1.11",
       escript: escript(),
