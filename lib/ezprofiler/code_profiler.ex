@@ -16,8 +16,15 @@ defmodule EZProfiler.CodeProfiler do
   There is a minimal run-time cost when the module is loaded, as much as a message to an Agent.
   """
 
+  @on_load :xxx
+
   use Agent
   alias EZProfiler.ProfilerOnTarget
+
+  def xxx() do
+    IO.inspect({:stub,:code.module_status(__MODULE__)})
+    :ok
+  end
 
   @doc false
   def child_spec(_), do: :ok
