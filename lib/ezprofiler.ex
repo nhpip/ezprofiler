@@ -260,8 +260,12 @@ defmodule EZProfiler do
        wait_for_user_events(%{state | command_count: count+1})
 
       <<"c", label::binary>> ->
-        label =  get_label(label) ## String.trim(label) |> String.trim(":") |> String.to_atom()
-        ProfilerOnTarget.allow_code_profiling(target_node, label)
+        with {:ok, label} <- get_label(label)
+        do
+          ProfilerOnTarget.allow_code_profiling(target_node, label)
+        else
+          _ -> IO.puts("Bad label")
+        end
         wait_for_user_events(%{state | command_count: count+1})
 
       "v" ->
@@ -345,11 +349,18 @@ defmodule EZProfiler do
   end
 
   defp get_label(label) do
+    label = String.trim(label) |> String.replace("\"", "")
+    if String.at(label, 0) == ":",
+      do: do_get_label(label),
+      else: do_get_label("\"#{label}\"")
+  end
+
+  defp do_get_label(label) do
     try do
-      {new_label, _} = String.trim(label) |> Code.eval_string()
-      new_label
+      {new_label, _} = Code.eval_string(label)
+      {:ok, new_label}
     rescue
-      _ -> label
+      _ -> :error
     end
   end
 
