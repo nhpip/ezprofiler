@@ -1,5 +1,5 @@
 
-Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. This runs as a stand-alone `escript` for both for ease of use and to minimize impact on the target VM.
+Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, there is an option to manage `ezprofiler` via code for deployments where access to the VM may be limited (see below)
 
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
@@ -220,8 +220,16 @@ case do_send_email(email, private_key) do
 ```
 See below for additional examples.
 
-## Compiling
-Execute `mix escript.build`
+## Compiling and Mix 
+Execute `mix compile` or include in the `deps` function of `mix.exs`
+
+```
+  defp deps do
+    [
+      {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false}
+    ]
+  end
+```
 
 ## Usage
 ```
