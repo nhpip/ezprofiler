@@ -221,7 +221,7 @@ case do_send_email(email, private_key) do
 See below for additional examples.
 
 ## Compiling and Mix 
-Execute `mix compile` or include in the `deps` function of `mix.exs`
+Execute `mix compile` or include in the `deps` function of application `mix.exs` file.
 
 ```
   defp deps do
