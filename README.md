@@ -1,8 +1,8 @@
 
-Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, there is an option to manage `ezprofiler` via Elixir code within your application for deployments where access to the VM may be limited (see below)
+Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via Elixir code within your application for deployments where access to the VM may be limited (see below).
 
 ## Overview
-The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface.
+The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface or, optionally, via code in tge case of code-profiling.
 
 ### Process Profiling 
 Attach the profiler to specific processes, registered names or pg/pg2 groups. When profiling starts those processes will be traced. The selection of pg vs pg2 is based on the OTP release, see `@pg_otp_version` in `lib/ezprofiler/term_helper.ex` if you wish to change that behavior.
