@@ -1,5 +1,5 @@
 
-Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via Elixir code within your application for deployments where access to the VM may be limited (see below).
+Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via source code within your application for deployments where access to the VM may be limited (see below).
 
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface or, optionally, via code in tge case of code-profiling.
@@ -156,6 +156,7 @@ def foo(data) do
 end
 
 ```
+### Code Profiling via the shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
 Code profiling still supports the `--mf` option (or `u` on the menu) to filter the results.
@@ -219,6 +220,9 @@ case do_send_email(email, private_key) do
      EZProfiler.CodeProfiler.stop_code_profiling()
 ```
 See below for additional examples.
+
+### Code Profilig via source code
+Add stuff here
 
 ## Compiling and Mix 
 Execute `mix compile` or include in the `deps` function of application `mix.exs` file.
