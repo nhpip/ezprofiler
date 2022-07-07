@@ -168,7 +168,7 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom), e.g. "c mylabel"
+     'c' "label"to enable code profiling (once) for label (an atom or string), e.g. "c mylabel"
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -210,7 +210,7 @@ Code profiling enabled with a label of :my_label
 waiting..(5)>
 Got a start profiling from source code with label of :my_label
 ```
-Alternatively the label can be replaced with a lambda that should return a label (atom) if tracing is to be started, or the atom `:nok` if it isn't:
+Alternatively the label can be replaced with a lambda that should return a label (atom or string) if tracing is to be started, or the atom `:nok` if it isn't:
 ```
 EZProfiler.CodeProfiler.start_code_profiling(fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
 
