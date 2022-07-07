@@ -156,7 +156,7 @@ def foo(data) do
 end
 
 ```
-### Code Profiling via the shell
+### Code profiling via the shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
 Code profiling still supports the `--mf` option (or `u` on the menu) to filter the results.
@@ -221,7 +221,7 @@ case do_send_email(email, private_key) do
 ```
 See below for additional examples.
 
-### Code Profilig via source code
+### Code profiling via source code
 Add stuff here
 
 ## Compiling and Mix 
