@@ -234,7 +234,7 @@ defmodule EZProfiler.CodeProfiler do
   def function_profiling(fun, args) when is_list(args), do:
     function_profiling(fun, args, :no_label)
 
-  def function_profiling(fun, label) when is_function(fun) and is_atom(label) do
+  def function_profiling(fun, label) when is_function(fun) and (is_atom(label) or is_binary(label)) do
     pid = self()
     Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
     action = receive do
@@ -306,7 +306,7 @@ defmodule EZProfiler.CodeProfiler do
   """
   def function_profiling(fun, args, options)
 
-  def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and is_atom(label) do
+  def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and (is_atom(label) or is_binary(label)) do
     pid = self()
     Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
     action = receive do
