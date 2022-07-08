@@ -19,8 +19,8 @@ It is also possible to include `ezprofiler` as a dependency too:
     ]
 ```
 
-## Overview
-The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface or, optionally, via code in tge case of code-profiling.
+## Profiling
+`ezprofiler` presents the user with two types of profiling, processes based and code based profiling, both controlled via a simple shell-type interface or, optionally, via code in the case of code profiling.
 
 ### Process Profiling 
 Attach the profiler to specific processes, registered names or pg/pg2 groups. When profiling starts those processes will be traced. The selection of pg vs pg2 is based on the OTP release, see `@pg_otp_version` in `lib/ezprofiler/term_helper.ex` if you wish to change that behavior.
