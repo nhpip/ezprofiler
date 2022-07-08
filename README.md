@@ -1,6 +1,24 @@
 
 Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via source code within your application for deployments where access to the VM may be limited (see below).
 
+There is a separate dependency, `ezprofiler_deps`, that needs to be included in the `deps` function of your `mix.exs` for code profiling to work correctly:
+
+```
+  defp deps do
+    [
+      {:ezprofiler_deps, git: "https://github.com/nhpip/ezprofiler_deps.git"}
+    ]
+  end
+```
+It is also possible to include `ezprofiler` as a dependency too:
+```
+  defp deps do
+    [
+      {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false},
+      {:ezprofiler_deps, git: "https://github.com/nhpip/ezprofiler_deps.git"}
+    ]
+```
+
 ## Overview
 The `ezprofiler` utilty presents the user with two types of profiling, both controlled via a simple shell-type interface or, optionally, via code in tge case of code-profiling.
 
@@ -8,7 +26,7 @@ The `ezprofiler` utilty presents the user with two types of profiling, both cont
 Attach the profiler to specific processes, registered names or pg/pg2 groups. When profiling starts those processes will be traced. The selection of pg vs pg2 is based on the OTP release, see `@pg_otp_version` in `lib/ezprofiler/term_helper.ex` if you wish to change that behavior.
 
 ### Code Profiling
-The process option can be omitted. Instead the code can be decorated with profiling functions. In this case, to simplify the analysis, only a single (the first) process to invoke that code block will be profiled. This is useful in, for example, web-based applications where 100's of processes maybe spawned and invoke the same code at the same time. The profiling functions incur zero run-time cost, and are safe to use in prodution, until the profiler is started.
+The process option can be omitted. Instead the code can be decorated with profiling functions. In this case, to simplify the analysis, only a single (the first) process to invoke that code block will be profiled. This is useful in, for example, web-based applications where 1000's of processes maybe spawned and invoke the same code at the same time. The profiling functions incur zero run-time cost, and are safe to use in prodution, until the profiler is started.
 
 ## Process Profiling
 This is when you know the process that you want to profile, the process is specified as a pid, registered name or PG2 group. The process or processes are specified with the command line option `--processes`. This coupled with the `--sos` (set on spawn) option can profile a process and carry on the profiling on all processes that are spawned by the target process. Included is the option to specify `:ranch` in the `--processes` option. This makes tracing of the popular `Ranch` socket acceptor pool, and specified with the `--sos` and `--sol` options will follow the spawned processes that are created on an inbound TCP accept requests.
@@ -111,7 +129,7 @@ If specified with the `--directory` option the results can be saved and the last
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
 ## Code Profiling
-This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the file `priv/ezcodeprofiler.ex` should be included in your application. This module (`EZProfiler.CodeProfiler`) contains stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is still minimal as only a single process will be monitored at a time, the only cost to other processes is a single `gen:call` to an Elixir `Agent` if a profiling function is called. Once `ezprofiler` terminates the original "stub" module is restored once again ensuring zero run-time cost.
+This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the dependency `ezprofiler_deps` should be added to your application `mix.exs` file (see below). This contains the module (`EZProfiler.CodeProfiler`) that has stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same fucntion names. These functions contain actual working code. The run-time cost is still minimal as only a single process will be monitored at a time, the only cost to other processes is a single `gen:call` to an Elixir `Agent` if a profiling function is called. Once `ezprofiler` terminates the original "stub" module is restored once again ensuring zero run-time cost.
 
 The application will attempt to only show functions, and functions that those functions call, that are part of your workflow. There will however be a couple of internal `ezprofiler` functions included too. These functions are at the end of the profiling run and will not impact your application. If you only wish to see the function been profiled, without `ezprofiler` and other called functions set the `--cpfo` option. Alternatively select the `--mf` option, especially if `cprof` is used as the profiler.
 
@@ -156,7 +174,7 @@ def foo(data) do
 end
 
 ```
-### Code Profiling via the shell
+### Code profiling via the ezprofiler shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
 Code profiling still supports the `--mf` option (or `u` on the menu) to filter the results.
@@ -221,16 +239,33 @@ case do_send_email(email, private_key) do
 ```
 See below for additional examples.
 
-### Code Profilig via source code
-Add stuff here
+### Code profiling via source code
+In certain deployments access to a shell, either the Elixir/Erlang` shell or a bash shell may be restricted. Instead there is limited functionality to code-profile via your application source code. Please be aware that this still requires the `ezprofiler` escript, which is still started in the background. This may change in future releases, but adding a profiler as a separate application does add risk to any other applications on the VM.
+
+Please see the `EZProfiler.Manager` module documentation for more information. There are 6 functions available for code profiling:
+```
+start_ezprofiler/0  # Starts the profiler with default configuration
+start_ezprofiler/1  # Starts the profiler with custom configuration
+
+stop_ezprofler/0    # Stops the profiler
+
+enable_profiling/0  # Start profiling, same as `c` from the CLI
+enable_profiling/1  # Start profiling with a label, same as `c label` from the CLI
+
+wait_for_results/0  # Blocks, and waits for results (up to 60 seconds)
+wait_for_results/1  # Blocks, and waits for results for the time, in seconds
+
+get_profiling_results/1 # Retrieves the results
+```
 
 ## Compiling and Mix 
-Execute `mix compile` or include in the `deps` function of application `mix.exs` file.
+Execute `mix compile` or include `ezprofiler` in `deps` function of application `mix.exs` file along with `ezprofiler_deps`.
 
 ```
   defp deps do
     [
-      {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false}
+      {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false},
+      {:ezprofiler_deps, git: "https://github.com/nhpip/ezprofiler_deps.git"}
     ]
   end
 ```
