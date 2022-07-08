@@ -124,13 +124,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def start_code_profiling(options) when is_atom(options) or is_binary(options) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, nil, options}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(nil, options)
     Process.put(:ezprofiler, action)
   end
 
@@ -235,13 +229,7 @@ defmodule EZProfiler.CodeProfiler do
     function_profiling(fun, args, :no_label)
 
   def function_profiling(fun, label) when is_function(fun) and (is_atom(label) or is_binary(label)) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(fun, label)
     rsp = Kernel.apply(fun, [])
     stop_code_profiling(action)
     rsp
@@ -307,13 +295,7 @@ defmodule EZProfiler.CodeProfiler do
   def function_profiling(fun, args, options)
 
   def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and (is_atom(label) or is_binary(label)) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(fun, label)
     rsp = Kernel.apply(fun, args)
     stop_code_profiling(action)
     rsp
@@ -356,13 +338,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def pipe_profiling(arg, fun) when is_function(fun) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, :no_label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(fun, :no_label)
     rsp = Kernel.apply(fun, [arg])
     stop_code_profiling(action)
     rsp
@@ -470,13 +446,7 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun, args, options)
 
   def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, options}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(fun, options)
     rsp = Kernel.apply(fun, [arg | args])
     stop_code_profiling(action)
     rsp
@@ -514,10 +484,14 @@ defmodule EZProfiler.CodeProfiler do
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
     receive do
       {:no_ref, _} -> :ok
+    after
+      1000 -> :error
     end
     receive do
       :code_profiling_stopped -> :code_profiling_stopped
       :code_profiling_never_started -> :code_profiling_never_started
+    after
+      1000 -> :error
     end
   end
 
@@ -527,6 +501,22 @@ defmodule EZProfiler.CodeProfiler do
   @doc false
   def get() do
     Agent.get(__MODULE__, &(&1))
+  end
+
+  defp do_profiling_setup(fun, options) do
+    try do
+      pid = self()
+      Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, options}, state) end)
+      receive do
+        :code_profiling_started -> :code_profiling_started
+        :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
+        :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
+      after
+        1000 -> :code_profiling_not_started_error
+      end
+    rescue
+      _ -> :code_profiling_not_started_error
+    end
   end
 
   defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false} = state) do
