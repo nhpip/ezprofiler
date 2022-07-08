@@ -59,7 +59,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def change_code_manager_pid(target_node, pid) do
-    :gen_statem.cast({:cstop_profiler, target_node}, {:change_profiler_pid, pid})
+    :gen_statem.cast({:cstop_profiler, target_node}, {:change_code_manager_pid, pid})
   end
 
   @doc false
