@@ -240,7 +240,7 @@ case do_send_email(email, private_key) do
 See below for additional examples.
 
 ### Code profiling via source code
-In certain deployments access to a shell, either the Elixir/Erlang` shell or a bash shell may be restricted. Instead there is limited functionality to code-profile via your application source code. Please be aware that this still requires the `ezprofiler` escript, which is still started in the background. This may change in future releases, but adding a profiler as a separate application does add risk to any other applications on the VM.
+In certain deployments access to a shell, either the Elixir/Erlang shell or a bash shell may be restricted. Instead there is limited functionality to code-profile via your application source code. Please be aware that this still requires the `ezprofiler` escript, which is still started in the background. This may change in future releases, but adding a profiler as a separate application does add risk to any other applications on the VM.
 
 Please see the `EZProfiler.Manager` module documentation for more information. There are 6 functions available for code profiling:
 ```
@@ -254,6 +254,8 @@ enable_profiling/1  # Start profiling with a label, same as `c label` from the C
 
 wait_for_results/0  # Blocks, and waits for results (up to 60 seconds)
 wait_for_results/1  # Blocks, and waits for results for the time, in seconds
+
+wait_for_results_non_block/2  # As `wait_for_results` but is non-blocking. Instead a message is sent to `self()` or the specified pid
 
 get_profiling_results/1 # Retrieves the results
 ```
