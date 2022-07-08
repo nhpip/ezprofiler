@@ -117,7 +117,8 @@ defmodule EZProfiler.ProfilerOnTarget do
       monitors: [],
       timer_ref: nil,
       beam_profiler_pid: nil,
-      code_manager_pid: nil
+      code_manager_pid: nil,
+      code_manager_async: false
     }
 
     ## Starts the state machine process on the target VM
@@ -255,7 +256,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   def handle_event(:cast, {:allow_code_profiling, label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
     CodeProfiler.allow_profiling(label)
     display_message(profiler_node, :code_prof_label, [label])
-    {:keep_state, %{state | current_label: label, pending_code_profiling: true, code_manager_pid: pid}}
+    {:keep_state, %{state | current_label: label, pending_code_profiling: true, code_manager_async: false, code_manager_pid: pid}}
   end
 
   @doc false
@@ -266,7 +267,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event(:cast, {:change_code_manager_pid, pid}, _any_state, state) do
-    {:keep_state, %{state | code_manager_pid: pid}}
+    {:keep_state, %{state | code_manager_pid: pid, code_manager_async: true}}
   end
 
   @doc false
@@ -285,8 +286,10 @@ defmodule EZProfiler.ProfilerOnTarget do
     profiling_complete(state)
     File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
     display_message(profiler_node, :new_line)
-    respond_to_manager(:results_available, cpid)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+    if state.code_manager_async,
+       do: respond_to_manager({:results_available, file, File.read!(file)}, cpid),
+       else:  respond_to_manager(:results_available, cpid)
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
