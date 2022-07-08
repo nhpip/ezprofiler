@@ -1,5 +1,5 @@
 
-Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. Under the hood it utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via source code within your application for deployments where access to the VM may be limited (see below).
+Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. It utilizes Erlang's profiler tools, namely `eprof`, the default, `fprof` or `cprof`. Supports profiling of processes or the ability to *decorate* your code with, zero cost, analysis functions. For ease of use and to minimize impact on the application to be profiled `ezprofiler` runs as a stand-alone `escript` rather than an application in the same VM. That said, for code-profiling there is an option to manage `ezprofiler` via source code within your application for deployments where access to the VM may be limited (see below).
 
 There is a separate dependency, `ezprofiler_deps`, that needs to be included in the `deps` function of your `mix.exs` for code profiling to work correctly:
 
