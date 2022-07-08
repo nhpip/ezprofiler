@@ -58,6 +58,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def change_code_manager_pid(target_node, pid) do
+    :gen_statem.cast({:change_code_manager_pid, target_node}, {:change_profiler_pid, pid})
+  end
+
+  @doc false
   def start_code_profiling(pid, fun, label) do
     :gen_statem.cast(:cstop_profiler, {:code_start, pid, fun, label})
   end
@@ -257,6 +262,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   def handle_event(:cast, {:allow_code_profiling, _label, _pid}, _other_state, %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :no_code_prof)
     {:keep_state, state}
+  end
+
+  @doc false
+  def handle_event(:cast, {:change_code_manager_pid, pid}, _any_state, state) do
+    {:keep_state, %{state | code_manager_pid: pid}}
   end
 
   @doc false
