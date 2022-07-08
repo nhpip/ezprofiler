@@ -53,6 +53,7 @@ defmodule EZProfiler do
   
   @doc false
   def error(error) do
+    IO.puts("")
     IO.puts(~s(#{inspect error}\n))
     help()
   end
@@ -80,7 +81,9 @@ defmodule EZProfiler do
       cookie -> :erlang.set_cookie(node(), String.to_atom(cookie))
     end
 
-    {target_node, args}
+    if :net_adm.ping(target_node) == :pong,
+      do: {target_node, args},
+      else: error({target_node, :unavailable})
   end
 
   ##
