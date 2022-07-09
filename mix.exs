@@ -45,7 +45,8 @@ defmodule EZProfiler.MixFile do
   defp description() do
     "Provides a simple to use profiling mechanism to inspect the behavior of an application on a target VM. 
      This runs as a stand-alone `escript` for both for ease of use and to minimize impact on the target VM.
-     Supports Erlang's eprof, fprof or cprof profilers"
+     Supports Erlang's eprof, fprof or cprof profilers. Requires ezprofiler_deps to be added to your mix deps:
+     https://github.com/nhpip/ezprofiler_deps.git"
   end
 
   defp package() do
