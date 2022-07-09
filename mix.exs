@@ -4,12 +4,13 @@ defmodule EZProfiler.MixFile do
   def project do
     [
       app: :ezprofiler,
-      version: "1.1.1",
+      version: "1.2.0",
       elixir: "~> 1.11",
       escript: escript(),
       package: package(),
       description: description(),
       name: "ezprofiler",
+      aliases: aliases(),
       deps: deps()
     ]
   end
@@ -25,6 +26,12 @@ defmodule EZProfiler.MixFile do
       main_module: EZProfiler,
       embed_elixir: false,
       shebang: make_shebang()
+    ]
+  end
+
+  defp aliases do
+    [
+      compile:  ["escript.build", "run priv/dep_clean.exs"]
     ]
   end
 

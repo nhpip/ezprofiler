@@ -71,15 +71,15 @@ defmodule EZProfiler.CodeProfiler do
   end
 
   ##
-  ## Called when we want to match on a label. If the label atom is passed that matches 'c label'
+  ## Called when we want to match on a label. If the label is passed that matches 'c label'
   ## then that process will be traced
   ##
   @doc """
-  Starts profiling a block of code using a label (atom) or an anonymous function to target the results.
+  Starts profiling a block of code using a label (atom or string) or an anonymous function to target the results.
 
   ## Options
 
-    - options: Can be either a label (atom) or anonymous function returning a label
+    - options: Can be either a label (atom or string) or anonymous function returning a label
 
   Starts profiling a function using label:
 
@@ -113,24 +113,18 @@ defmodule EZProfiler.CodeProfiler do
 
   Or with a label:
 
-      waiting..(4)> c my_label
+      waiting..(4)> c :my_label
       waiting..(5)>
       Code profiling enabled with a label of :my_label
 
       waiting..(5)>
       Got a start profiling from source code with label of :my_label
 
-  **NOTE:** If anonymous function is used it must return an atom (label) to allow profiling or the atom `:nok` to not profile.
+  **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
   """
-  def start_code_profiling(options) when is_atom(options) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, nil, options}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+  def start_code_profiling(options) when is_atom(options) or is_binary(options) do
+    action = do_profiling_setup(nil, options)
     Process.put(:ezprofiler, action)
   end
 
@@ -176,7 +170,7 @@ defmodule EZProfiler.CodeProfiler do
   ## Options
 
     - fun: The function (capture) to profile
-    - options: Can be either a list of arguments, a label (atom) or anonymous function returning a label
+    - options: Can be either a list of arguments, a label (atom or string) or anonymous function returning a label
 
   Starts profiling a function with arguments only:
 
@@ -219,14 +213,14 @@ defmodule EZProfiler.CodeProfiler do
 
   Or with a label:
 
-       waiting..(4)> c my_label
+       waiting..(4)> c :my_label
        waiting..(5)>
        Code profiling enabled with a label of :my_label
 
        waiting..(5)>
        Got a start profiling from source code with label of :my_label
 
-  **NOTE:** If anonymous function is used it must return an atom (label) to allow profiling or the atom `:nok` to not profile.
+  **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
   """
   def function_profiling(fun, options)
@@ -234,14 +228,8 @@ defmodule EZProfiler.CodeProfiler do
   def function_profiling(fun, args) when is_list(args), do:
     function_profiling(fun, args, :no_label)
 
-  def function_profiling(fun, label) when is_function(fun) and is_atom(label) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+  def function_profiling(fun, label) when is_function(fun) and (is_atom(label) or is_binary(label)) do
+    action = do_profiling_setup(fun, label)
     rsp = Kernel.apply(fun, [])
     stop_code_profiling(action)
     rsp
@@ -268,7 +256,7 @@ defmodule EZProfiler.CodeProfiler do
 
     - fun: The function (capture) to profile
     - args: The list of arguments to pass to the function
-    - options: Can be either a label (atom) or anonymous function returning a label
+    - options: Can be either a label (atom or string) or anonymous function returning a label
 
   Starts profiling a function using arguments and a label:
 
@@ -277,7 +265,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], :my_label)
+        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], "Profile 52")
       end
 
 
@@ -288,32 +276,26 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(y), do: :my_label, else: :nok end)
+        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(y), do: "Profile 52", else: :nok end)
       end
 
 
   Then in the `ezprofiler` console:
 
-       waiting..(4)> c my_label
+       waiting..(4)> c "Profile 52"
        waiting..(5)>
        Code profiling enabled with a label of :my_label
 
        waiting..(5)>
-       Got a start profiling from source code with label of :my_label
+       Got a start profiling from source code with label of "Profile 52"
 
-  **NOTE:** If anonymous function is used it must return an atom (label) to allow profiling or the atom `:nok` to not profile.
+  **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
   """
   def function_profiling(fun, args, options)
 
-  def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and is_atom(label) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+  def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and (is_atom(label) or is_binary(label)) do
+    action = do_profiling_setup(fun, label)
     rsp = Kernel.apply(fun, args)
     stop_code_profiling(action)
     rsp
@@ -356,13 +338,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def pipe_profiling(arg, fun) when is_function(fun) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, :no_label}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+    action = do_profiling_setup(fun, :no_label)
     rsp = Kernel.apply(fun, [arg])
     stop_code_profiling(action)
     rsp
@@ -375,7 +351,7 @@ defmodule EZProfiler.CodeProfiler do
 
     - arg: The argument passed in from the previous function/term in the sequence
     - fun: The function (capture) to profile
-    - options: Can be either extra arguments, a label (atom) or anonymous function returning a label
+    - options: Can be either extra arguments, a label (atom or string) or anonymous function returning a label
 
   Starts profiling a function in a pipe using extra arguments:
 
@@ -429,7 +405,7 @@ defmodule EZProfiler.CodeProfiler do
     - arg: The argument passed in from the previous function/term in the sequence
     - fun: The function (capture) to profile
     - args: The list of extra arguments to pass to the function
-    - options: Either a label (atom) or anonymous function returning a label
+    - options: Either a label (atom or string) or anonymous function returning a label
 
   Starts profiling using arguments and a label:
 
@@ -457,26 +433,20 @@ defmodule EZProfiler.CodeProfiler do
 
   Then in the `ezprofiler` console:
 
-      waiting..(4)> c my_label
+      waiting..(4)> c :my_label
       waiting..(5)>
       Code profiling enabled with a label of :my_label
 
       waiting..(5)>
       Got a start profiling from source code with label of :my_label
 
-    **NOTE:** If anonymous function is used it must return an atom (label) to allow profiling or the atom `:nok` to not profile.
+    **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
   """
   def pipe_profiling(arg, fun, args, options)
 
-  def pipe_profiling(arg, fun, args, options) when is_atom(options) do
-    pid = self()
-    Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, options}, state) end)
-    action = receive do
-      :code_profiling_started -> :code_profiling_started
-      :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-      :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
-    end
+  def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
+    action = do_profiling_setup(fun, options)
     rsp = Kernel.apply(fun, [arg | args])
     stop_code_profiling(action)
     rsp
@@ -514,10 +484,14 @@ defmodule EZProfiler.CodeProfiler do
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
     receive do
       {:no_ref, _} -> :ok
+    after
+      1000 -> :error
     end
     receive do
       :code_profiling_stopped -> :code_profiling_stopped
       :code_profiling_never_started -> :code_profiling_never_started
+    after
+      1000 -> :error
     end
   end
 
@@ -527,6 +501,22 @@ defmodule EZProfiler.CodeProfiler do
   @doc false
   def get() do
     Agent.get(__MODULE__, &(&1))
+  end
+
+  defp do_profiling_setup(fun, options) do
+    try do
+      pid = self()
+      Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, options}, state) end)
+      receive do
+        :code_profiling_started -> :code_profiling_started
+        :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
+        :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
+      after
+        1000 -> :code_profiling_not_started_error
+      end
+    rescue
+      _ -> :code_profiling_not_started_error
+    end
   end
 
   defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false} = state) do

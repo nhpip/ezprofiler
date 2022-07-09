@@ -39,19 +39,21 @@ defmodule EZProfiler do
              sos: :boolean,
              sort: :string,
              cpfo: :boolean,
+             inline: :string,
              help: :boolean
            ]
          )
       |> setup_distributed_erlang() |> start_profiling()
     rescue
       e in ArgumentError -> error(e.message)
-      e in FunctionClauseError -> IO.puts("error: " <> e.message)
+      e in FunctionClauseError -> IO.puts("error: #{inspect(e)}")
       e -> IO.puts("error #{inspect(e)}")
     end
   end
   
   @doc false
   def error(error) do
+    IO.puts("")
     IO.puts(~s(#{inspect error}\n))
     help()
   end
@@ -79,7 +81,9 @@ defmodule EZProfiler do
       cookie -> :erlang.set_cookie(node(), String.to_atom(cookie))
     end
 
-    {target_node, args}
+    if :net_adm.ping(target_node) == :pong,
+      do: {target_node, args},
+      else: error({target_node, :unavailable})
   end
 
   ##
@@ -155,6 +159,8 @@ defmodule EZProfiler do
 
       ## Since this "main" process is blocked waiting on user input spawn a process that proxies inbound messages from the target
       wait_for_profiler_events(profiler_pid, monitor_pid)
+
+      if (filename = Keyword.get(opts, :inline, nil)), do: File.touch(filename)
 
       ## Get user input/commands
       wait_for_user_events(state)
@@ -257,8 +263,12 @@ defmodule EZProfiler do
        wait_for_user_events(%{state | command_count: count+1})
 
       <<"c", label::binary>> ->
-        label =  String.trim(label) |> String.trim(":") |> String.to_atom()
-        ProfilerOnTarget.allow_code_profiling(target_node, label)
+        with {:ok, label} <- get_label(label)
+        do
+          ProfilerOnTarget.allow_code_profiling(target_node, label)
+        else
+          _ -> IO.puts("Bad label")
+        end
         wait_for_user_events(%{state | command_count: count+1})
 
       "v" ->
@@ -287,6 +297,10 @@ defmodule EZProfiler do
 
           :code_profiling_ended ->
             display_message(:new_line1)
+            wait_for_user_events(state)
+
+          {:get_results_file, pid} ->
+            get_results_file(pid, state)
             wait_for_user_events(state)
 
           {:state_change, pid, :waiting} ->
@@ -337,6 +351,22 @@ defmodule EZProfiler do
     end
   end
 
+  defp get_label(label) do
+    label = String.trim(label) |> String.replace("\"", "")
+    if String.at(label, 0) == ":",
+      do: do_get_label(label),
+      else: do_get_label("\"#{label}\"")
+  end
+
+  defp do_get_label(label) do
+    try do
+      {new_label, _} = Code.eval_string(label)
+      {:ok, new_label}
+    rescue
+      _ -> :error
+    end
+  end
+
   defp make_prompt(%{prompt: :no_prompt} = _state), do: ""
 
   defp make_prompt(%{prompt: prompt, command_count: count} = _state), do: prompt <> "(#{count})> "
@@ -358,7 +388,7 @@ defmodule EZProfiler do
 
   defp view_results_file(%{results_file: filename} = _state) when is_binary(filename) do
     try do
-      File.stream!(filename) |> Enum.each(fn line -> String.trim(line,"\n") |> IO.puts() end)
+      File.stream!(filename) |> Enum.each(&(String.trim(&1, "\n")) |> IO.puts())
       IO.puts("")
     rescue
       _ ->
@@ -366,7 +396,20 @@ defmodule EZProfiler do
     end
   end
 
-  defp view_results_file(_state), do: display_message(:no_file)
+  defp view_results_file(_state), do:
+    display_message(:no_file)
+
+  defp get_results_file(pid, %{results_file: filename} = _state) when is_binary(filename) do
+    try do
+      send(pid, {:profiling_results, filename, File.read!(filename)})
+    rescue
+      _ ->
+        send(pid, {:no_profiling_results, :processing_exception})
+    end
+  end
+
+  defp get_results_file(pid, _state), do:
+    send(pid, {:profiling_results, :no_results_file})
 
   ##
   ## Gets the module's binary code and load it on the target.
@@ -378,7 +421,6 @@ defmodule EZProfiler do
   end
 
   defp display_message(message_details) do
-
     case message_details do
       {:new_line, _} ->
         IO.puts("")

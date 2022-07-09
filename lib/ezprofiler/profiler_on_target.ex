@@ -49,7 +49,17 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def allow_code_profiling(target_node, label) do
-    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, label})
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, label, nil})
+  end
+
+  @doc false
+  def allow_code_profiling(target_node, label, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, label, pid})
+  end
+
+  @doc false
+  def change_code_manager_pid(target_node, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:change_code_manager_pid, pid})
   end
 
   @doc false
@@ -107,6 +117,8 @@ defmodule EZProfiler.ProfilerOnTarget do
       monitors: [],
       timer_ref: nil,
       beam_profiler_pid: nil,
+      code_manager_pid: nil,
+      code_manager_async: false
     }
 
     ## Starts the state machine process on the target VM
@@ -234,23 +246,28 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, :any_label}, :waiting, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, :any_label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
     CodeProfiler.allow_profiling(:any_label)
     display_message(profiler_node, :code_prof)
-    {:keep_state, %{state | pending_code_profiling: true}}
+    {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid}}
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, label}, :waiting, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
     CodeProfiler.allow_profiling(label)
     display_message(profiler_node, :code_prof_label, [label])
-    {:keep_state, %{state | current_label: label, pending_code_profiling: true}}
+    {:keep_state, %{state | current_label: label, pending_code_profiling: true, code_manager_async: false, code_manager_pid: pid}}
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, _label}, _other_state, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, _label, _pid}, _other_state, %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :no_code_prof)
     {:keep_state, state}
+  end
+
+  @doc false
+  def handle_event(:cast, {:change_code_manager_pid, pid}, _any_state, state) do
+    {:keep_state, %{state | code_manager_pid: pid, code_manager_async: true}}
   end
 
   @doc false
@@ -263,13 +280,16 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
     current_label = state.current_label
     respond_to_code(:code, :code_profiling_stopped, [pid])
     profiling_complete(state)
     File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+    if state.code_manager_async,
+       do: respond_to_manager({:results_available, file, File.read!(file)}, cpid),
+       else:  respond_to_manager(:results_available, cpid)
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
@@ -603,6 +623,12 @@ defmodule EZProfiler.ProfilerOnTarget do
   defp respond_to_code(_, _, _) do
     :ok
   end
+
+  defp respond_to_manager(message, pid) when is_pid(pid), do:
+    send(pid, message)
+
+  defp respond_to_manager(_, _), do:
+    :ok
 
   defp start_profiler(%{profiler: :cprof} = _state) do
     :cprof
