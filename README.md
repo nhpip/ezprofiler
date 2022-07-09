@@ -3,7 +3,7 @@ Provides a simple to use profiling mechanism to inspect the behavior of an appli
 
 There is a separate dependency, `ezprofiler_deps`, that needs to be included in the `deps` function of your `mix.exs` for code profiling to work correctly:
 
-```
+```elixir
   defp deps do
     [
       {:ezprofiler_deps, git: "https://github.com/nhpip/ezprofiler_deps.git"}
@@ -11,7 +11,7 @@ There is a separate dependency, `ezprofiler_deps`, that needs to be included in 
   end
 ```
 It is also possible to include `ezprofiler` as a dependency too:
-```
+```elixir
   defp deps do
     [
       {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false},
@@ -134,7 +134,7 @@ This permits the profiling of code dynamically. The user can decorate functions 
 The application will attempt to only show functions, and functions that those functions call, that are part of your workflow. There will however be a couple of internal `ezprofiler` functions included too. These functions are at the end of the profiling run and will not impact your application. If you only wish to see the function been profiled, without `ezprofiler` and other called functions set the `--cpfo` option. Alternatively select the `--mf` option, especially if `cprof` is used as the profiler.
 
 For example, this will profile anything between `start_code_profiling/0` and `stop_code_profiling/0`
-```
+```elixir
 def foo() do
    x = function1()
    y = function2()
@@ -145,7 +145,7 @@ def foo() do
 end
 ```
 This will just profile a specific function
-```
+```elixir
 def foo() do
    x = function1()
    y = function2()
@@ -153,7 +153,7 @@ def foo() do
 end
 ```
 Or with a label / anonymous function:
-```
+```elixir
 def foo() do
    x = function1()
    y = function2()
@@ -167,7 +167,7 @@ def foo() do
  end
 ```
 Or in a pipelne:
-```
+```elixir
 def foo(data) do
    x = function1()
    data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
@@ -213,7 +213,7 @@ FUNCTION                                                                        
 ...SNIP...   
 ```
 A label can be set as follows:
-```
+```elixir
 EZProfiler.CodeProfiler.start_code_profiling(:my_label)
 
 case do_send_email(email, private_key) do
@@ -230,7 +230,7 @@ waiting..(5)>
 Got a start profiling from source code with label of :my_label
 ```
 Alternatively the label can be replaced with a lambda that should return a label (atom or string) if tracing is to be started, or the atom `:nok` if it isn't:
-```
+```elixir
 EZProfiler.CodeProfiler.start_code_profiling(fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
 
 case do_send_email(email, private_key) do
@@ -243,7 +243,7 @@ See below for additional examples.
 In certain deployments access to a shell, either the Elixir/Erlang shell or a bash shell may be restricted. Instead there is limited functionality to code-profile via your application source code. Please be aware that this still requires the `ezprofiler` escript, which is still started in the background. This may change in future releases, but adding a profiler as a separate application does add risk to any other applications on the VM.
 
 Please see the `EZProfiler.Manager` module documentation for more information. There are 6 functions available for code profiling:
-```
+```elixir
 start_ezprofiler/0  # Starts the profiler with default configuration
 start_ezprofiler/1  # Starts the profiler with custom configuration
 
@@ -263,7 +263,7 @@ get_profiling_results/1 # Retrieves the results
 ## Compiling and Mix 
 Execute `mix compile` or include `ezprofiler` in `deps` function of application `mix.exs` file along with `ezprofiler_deps`.
 
-```
+```elixir
   defp deps do
     [
       {:ezprofiler, git: "https://github.com/nhpip/ezprofiler.git", app: false},
@@ -305,7 +305,7 @@ ezprofiler:
 ## Additional Code Profiling Examples
 
 ### Code Block Profiling
-```
+```elixir
      EZProfiler.CodeProfiler.start_code_profiling()
      profile_fun1()
      profile_fun2(1..10)
@@ -322,7 +322,7 @@ ezprofiler:
      EZProfiler.CodeProfiler.stop_code_profiling()
 ```
 ### Function Profiling
-```
+```elixir
      EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0)
 
      EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, :my_label)
@@ -336,7 +336,7 @@ ezprofiler:
      EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
 ```
 ### Pipe Profiling
-```
+```elixir
      [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1) |> Enum.sum()
 
      [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, :my_label) |> Enum.sum()
