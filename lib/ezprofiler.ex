@@ -40,6 +40,7 @@ defmodule EZProfiler do
              sort: :string,
              cpfo: :boolean,
              inline: :string,
+             continue: :boolean,
              help: :boolean
            ]
          )
@@ -128,7 +129,8 @@ defmodule EZProfiler do
           set_on_spawn: Keyword.get(opts, :sos, false),
           directory: Keyword.get(opts, :directory, false),
           max_time: Keyword.get(opts, :maxtime, @max_profile_time) * 1000,
-          code_profiler_fun_only: Keyword.get(opts, :cpfo, false)
+          code_profiler_fun_only: Keyword.get(opts, :cpfo, false),
+          continue?: Keyword.get(opts, :continue, false)
       }
 
       ## Load the module CodeMonitor on the target and spawn a process on the target that executes that code
@@ -172,7 +174,7 @@ defmodule EZProfiler do
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' \"label\"to enable code profiling (once) for label (an atom), e.g. \"c mylabel\"
+     'c' \"label\" to enable code profiling (once) for label (an atom, string or list of either), e.g. \"c mylabel\" || \"c label1, label2\"
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -262,10 +264,10 @@ defmodule EZProfiler do
        ProfilerOnTarget.allow_code_profiling(target_node, :any_label)
        wait_for_user_events(%{state | command_count: count+1})
 
-      <<"c", label::binary>> ->
-        with {:ok, label} <- get_label(label)
+      <<"c", labels::binary>> ->
+        with {:ok, labels} <- get_label(labels)
         do
-          ProfilerOnTarget.allow_code_profiling(target_node, label)
+          ProfilerOnTarget.allow_code_profiling(target_node, labels)
         else
           _ -> IO.puts("Bad label")
         end
@@ -351,17 +353,27 @@ defmodule EZProfiler do
     end
   end
 
-  defp get_label(label) do
-    label = String.trim(label) |> String.replace("\"", "")
-    if String.at(label, 0) == ":",
-      do: do_get_label(label),
-      else: do_get_label("\"#{label}\"")
+  defp get_label(labels) do
+    new_labels =
+      String.trim(labels)
+      |> String.replace("[", "")
+      |> String.replace("]", "")
+      |> String.split(",")
+      |> Enum.map(fn label ->
+            label = String.trim(label) |> String.replace("\"", "")
+            if String.at(label, 0) == ":",
+              do: do_get_label(label),
+              else: do_get_label("\"#{label}\"")
+      end)
+      if Enum.member?(new_labels, :error),
+        do: :error,
+        else: {:ok, new_labels}
   end
 
   defp do_get_label(label) do
     try do
       {new_label, _} = Code.eval_string(label)
-      {:ok, new_label}
+      new_label
     rescue
       _ -> :error
     end

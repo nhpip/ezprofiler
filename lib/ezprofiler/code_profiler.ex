@@ -28,15 +28,15 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def start() do
-    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, label: :any_label} end, name: __MODULE__)
+    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, labels: :any_label} end, name: __MODULE__)
   end
 
   ##
   ## Invoked from the state machine on a user hitting 'c' to start code profiling
   ##
   @doc false
-  def allow_profiling(label) do
-    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: true, label: label} end)
+  def allow_profiling(labels) do
+    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: true, labels: labels} end)
   end
 
   ##
@@ -45,7 +45,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def disallow_profiling() do
-    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, label: :any_label} end)
+    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: :any_label} end)
   end
 
   ##
@@ -524,14 +524,19 @@ defmodule EZProfiler.CodeProfiler do
     {false, state}
   end
 
-  defp do_start_profiling({pid, fun, label}, %{label: my_label} = state)  when label == my_label do
+  defp do_start_profiling({pid, fun, label}, %{labels: :any_label} = state) do
     ProfilerOnTarget.start_code_profiling(pid, fun, label)
-    {true, %{state | allow_profiling: false, clear_pid: pid, label: :any_label}}
+    {true, %{state | allow_profiling: false, clear_pid: pid}}
   end
 
-  defp do_start_profiling({pid, fun, label}, %{label: :any_label} = state) do
-    ProfilerOnTarget.start_code_profiling(pid, fun, label)
-    {true, %{state | allow_profiling: false, clear_pid: pid, label: :any_label}}
+  defp do_start_profiling({pid, fun, label}, %{labels: my_labels} = state) do
+    if Enum.member?(my_labels, label) do
+      ProfilerOnTarget.start_code_profiling(pid, fun, label)
+      {true, %{state | allow_profiling: false, clear_pid: pid, labels: :any_label}}
+    else
+      send(pid, :code_profiling_not_started_invalid_label)
+      {false, state}
+    end
   end
 
   defp do_start_profiling({pid, _fun, _label}, state) do
@@ -541,7 +546,7 @@ defmodule EZProfiler.CodeProfiler do
 
   defp do_stop_profiling(pid, %{clear_pid: pid} = state) do
     ProfilerOnTarget.stop_code_profiling()
-    {true, %{state | allow_profiling: false, clear_pid: nil, label: :any_label}}
+    {true, %{state | allow_profiling: false, clear_pid: nil, labels: :any_label}}
   end
 
   defp do_stop_profiling(pid, state) do

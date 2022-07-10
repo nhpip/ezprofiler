@@ -14,7 +14,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   @temp_results_file "/tmp/tmp_profile_results"
 
   alias EZProfiler.CodeProfiler
-  
+
   @doc false
   def callback_mode, do: :handle_event_function
 
@@ -105,7 +105,8 @@ defmodule EZProfiler.ProfilerOnTarget do
       set_on_spawn: opts.set_on_spawn,
       results_directory: opts.directory,
       current_results_filename: "",
-      current_label:  :any_label,
+      current_labels: [:any_label],
+      current_label: :any_label,
       results_file_index: 0,
       max_profiling_time: opts.max_time,
       current_state: :waiting,          # One of :waiting or :profiling
@@ -118,7 +119,8 @@ defmodule EZProfiler.ProfilerOnTarget do
       timer_ref: nil,
       beam_profiler_pid: nil,
       code_manager_pid: nil,
-      code_manager_async: false
+      code_manager_async: false,
+      continue?: opts.continue?
     }
 
     ## Starts the state machine process on the target VM
@@ -253,10 +255,10 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
-    CodeProfiler.allow_profiling(label)
-    display_message(profiler_node, :code_prof_label, [label])
-    {:keep_state, %{state | current_label: label, pending_code_profiling: true, code_manager_async: false, code_manager_pid: pid}}
+  def handle_event(:cast, {:allow_code_profiling, labels, pid}, :waiting, %{profiler_node: profiler_node} = state) do
+    CodeProfiler.allow_profiling(labels)
+    display_message(profiler_node, :code_prof_label, [labels])
+    {:keep_state, %{state | current_labels: labels, pending_code_profiling: true, code_manager_async: false, code_manager_pid: pid}}
   end
 
   @doc false
@@ -273,7 +275,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event(:cast, {:code_start, pid, fun, label}, :waiting, %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :code_start, [label])
-    case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, current_label: label, code_tracing_pid: pid}) do
+    case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, code_tracing_pid: pid}) do
       {:continue, new_state} -> {:next_state, :profiling, %{new_state | code_profile_fun: nil}}
       {_, new_state} -> {:stop, :normal, %{new_state | code_profile_fun: nil}}
     end
@@ -282,6 +284,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
     current_label = state.current_label
+    next_labels = get_next_labels_and_issue_next_state(state)
     respond_to_code(:code, :code_profiling_stopped, [pid])
     profiling_complete(state)
     File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
@@ -289,7 +292,8 @@ defmodule EZProfiler.ProfilerOnTarget do
     if state.code_manager_async,
        do: respond_to_manager({:results_available, file, File.read!(file)}, cpid),
        else:  respond_to_manager(:results_available, cpid)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+    {:next_state, :waiting, %{state | pending_code_profiling: false, current_labels: next_labels, profiling_type_state: :normal,
+                                      code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
@@ -302,7 +306,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     display_message(profiler_node, :time_exceeded, [ptime])
     profiling_complete(state)
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state | current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state | current_labels: [:any_label], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
@@ -311,7 +315,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     CodeProfiler.disallow_profiling()
     profiling_complete(state)
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state |  current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state |  current_labels: [:any_label], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
@@ -367,7 +371,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   ## Invoked when we got a request from a user / the escript to start profiling
   ##
   defp do_profiling(code_tracing_pid, %{profiler_node: profiler_node, profiler: profiler, pids_to_profile: processes,
-    profiling_type_state: profiling_type_state, max_profiling_time: max_time} = state) do
+                                        profiling_type_state: profiling_type_state, max_profiling_time: max_time} = state) do
     tracing_processes = if profiling_type_state == :code do code_tracing_pid else processes end
     new_state = log_to_file(state)
 
@@ -642,6 +646,22 @@ defmodule EZProfiler.ProfilerOnTarget do
       {:error, {:already_started, profiler_pid}} ->
         Process.monitor(profiler_pid)
         profiler_pid
+    end
+  end
+
+  defp get_next_labels_and_issue_next_state(%{current_labels: current_labels, current_label: current_label} = state) do
+    if state.continue? do
+      case List.delete(current_labels, current_label) do
+        [] ->
+          [:any_label]
+        [:any_label] = data ->
+          data
+        next_labels ->
+          allow_code_profiling(node(), next_labels)
+          next_labels
+      end
+    else
+      [:any_label]
     end
   end
 
