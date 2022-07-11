@@ -28,7 +28,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def start() do
-    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, labels: :any_label} end, name: __MODULE__)
+    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, labels: []} end, name: __MODULE__)
   end
 
   ##
@@ -45,7 +45,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def disallow_profiling() do
-    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: :any_label} end)
+    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: []} end)
   end
 
   ##
@@ -524,15 +524,16 @@ defmodule EZProfiler.CodeProfiler do
     {false, state}
   end
 
-  defp do_start_profiling({pid, fun, label}, %{labels: :any_label} = state) do
+  defp do_start_profiling({pid, fun, :no_label = label}, state) do
     ProfilerOnTarget.start_code_profiling(pid, fun, label)
-    {true, %{state | allow_profiling: false, clear_pid: pid}}
+    {true, %{state | allow_profiling: false, clear_pid: pid, label: label}}
   end
 
-  defp do_start_profiling({pid, fun, label}, %{labels: my_labels} = state) do
+  defp do_start_profiling({pid, fun, in_label}, %{labels: my_labels} = state) do
+    label = lower_label(in_label)
     if Enum.member?(my_labels, label) do
-      ProfilerOnTarget.start_code_profiling(pid, fun, label)
-      {true, %{state | allow_profiling: false, clear_pid: pid, labels: :any_label}}
+      ProfilerOnTarget.start_code_profiling(pid, fun, label, in_label)
+      {true, %{state | allow_profiling: false, clear_pid: pid, label: label, labels: List.delete(my_labels, label)}}
     else
       send(pid, :code_profiling_not_started_invalid_label)
       {false, state}
@@ -546,12 +547,18 @@ defmodule EZProfiler.CodeProfiler do
 
   defp do_stop_profiling(pid, %{clear_pid: pid} = state) do
     ProfilerOnTarget.stop_code_profiling()
-    {true, %{state | allow_profiling: false, clear_pid: nil, labels: :any_label}}
+    {true, %{state | allow_profiling: false, clear_pid: nil, label: :any_label}}
   end
 
   defp do_stop_profiling(pid, state) do
     send(pid, :code_profiling_never_started)
     state
   end
+
+  defp lower_label(label) when is_binary(label), do:
+    String.downcase(label)
+
+  defp lower_label(label), do:
+    label
 
 end

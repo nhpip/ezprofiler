@@ -40,7 +40,7 @@ defmodule EZProfiler do
              sort: :string,
              cpfo: :boolean,
              inline: :string,
-             continue: :boolean,
+             labeltran: :boolean,
              help: :boolean
            ]
          )
@@ -130,7 +130,7 @@ defmodule EZProfiler do
           directory: Keyword.get(opts, :directory, false),
           max_time: Keyword.get(opts, :maxtime, @max_profile_time) * 1000,
           code_profiler_fun_only: Keyword.get(opts, :cpfo, false),
-          continue?: Keyword.get(opts, :continue, false)
+          label_transition?: Keyword.get(opts, :labeltran, false)
       }
 
       ## Load the module CodeMonitor on the target and spawn a process on the target that executes that code
@@ -175,6 +175,7 @@ defmodule EZProfiler do
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
      'c' \"label\" to enable code profiling (once) for label (an atom, string or list of either), e.g. \"c mylabel\" || \"c label1, label2\"
+     'l' \"true || false\" permits transition between labels if multiple labels are specified
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -261,7 +262,7 @@ defmodule EZProfiler do
         System.halt()
 
       "c" ->
-       ProfilerOnTarget.allow_code_profiling(target_node, :any_label)
+       ProfilerOnTarget.allow_code_profiling(target_node, [])
        wait_for_user_events(%{state | command_count: count+1})
 
       <<"c", labels::binary>> ->
@@ -269,7 +270,17 @@ defmodule EZProfiler do
         do
           ProfilerOnTarget.allow_code_profiling(target_node, labels)
         else
-          _ -> IO.puts("Bad label")
+          _ -> display_message(:bad_label)
+        end
+        wait_for_user_events(%{state | command_count: count+1})
+
+      <<"l", bool::binary>> ->
+        with {:ok, transition?} <- label_transition(bool)
+        do
+          display_message({:label_transistion, transition?})
+          ProfilerOnTarget.allow_label_transition(target_node, transition?)
+        else
+          _ -> display_message({:label_transistion, :error})
         end
         wait_for_user_events(%{state | command_count: count+1})
 
@@ -350,6 +361,17 @@ defmodule EZProfiler do
           _ ->
             wait_for_user_events(state)
         end
+    end
+  end
+
+  defp label_transition(allow?) do
+    try do
+      {allow?, _} = String.trim(allow?) |> Code.eval_string()
+      if is_boolean(allow?),
+        do: {:ok, allow?},
+        else: :error
+    rescue
+      _ -> :error
     end
   end
 
@@ -446,7 +468,16 @@ defmodule EZProfiler do
       :invalid_profiler ->
         IO.puts("\nInvalid profiler\n")
 
-     {:message, message}  ->
+      :bad_label ->
+        IO.puts("\nBad label\n")
+
+      {:label_transistion, :error} ->
+        IO.puts("\nMust be either true or false\n")
+
+      {:label_transistion, what} ->
+        IO.puts("\nLabel transition set to #{what}\n")
+
+      {:message, message}  ->
         IO.puts("\n#{inspect(message)}\n")
 
       {:stopped_profiling, [filename]} ->
@@ -485,8 +516,9 @@ defmodule EZProfiler do
       {:no_code_prof, _} ->
         IO.puts("\nCode profiling can onle be enabled in waiting state\n")
 
-      {:code_prof_label, [label]} ->
-        IO.puts("\nCode profiling enabled with a label of #{inspect label}\n")
+      {:code_prof_label, [labels]} ->
+        labels = Enum.reduce(labels, "",  fn(l, a) -> "#{a}, #{inspect(l)}" end) |> String.replace("\"", "") |> String.trim_leading(", ")
+        IO.puts("\nCode profiling enabled with label(s) of #{labels}\n")
 
       :no_file ->
         IO.puts("\nNo file found\n")
@@ -546,6 +578,7 @@ defmodule EZProfiler do
     IO.puts(" --profiler: one of eprof, cprof or fprof, default eprof\n")
     IO.puts(" --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof\n")
     IO.puts(" --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls\n")
+    IO.puts(" --labeltran: permits transition between labels if multiple labels are specified\n")
     IO.puts(" --help: this page\n")
 
     System.halt()
