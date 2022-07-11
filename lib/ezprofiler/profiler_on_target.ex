@@ -73,6 +73,16 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def set_extra_code_pids(target_node, pids) when is_list(pids) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:set_extra_code_pids, pids})
+  end
+
+  @doc false
+  def set_extra_code_pids(target_node, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:set_extra_code_pids, [pid]})
+  end
+
+  @doc false
   def test_pid(target_node, pid) do
     :gen_statem.cast({:cstop_profiler, target_node}, {:test_pid, pid})
   end
@@ -148,6 +158,7 @@ defmodule EZProfiler.ProfilerOnTarget do
       code_manager_pid: nil,
       code_manager_async: false,
       test_pid: nil,
+      extra_code_pids: [],
       label_transition?: opts.label_transition?
     }
 
@@ -300,7 +311,12 @@ defmodule EZProfiler.ProfilerOnTarget do
   def handle_event(:cast, {:change_code_manager_pid, pid}, _any_state, state) do
     {:keep_state, %{state | code_manager_pid: pid, code_manager_async: true}}
   end
-  
+
+  @doc false
+  def handle_event(:cast, {:set_extra_code_pids, pids}, _any_state, state) do
+    {:keep_state, %{state | extra_code_pids: pids}}
+  end
+
   @doc false
   def handle_event(:cast, {:allow_label_transition, transition?}, _any_state, state) do
     {:keep_state, %{state | label_transition?: transition?}}
@@ -468,9 +484,9 @@ defmodule EZProfiler.ProfilerOnTarget do
   ##
   ## Start profiling if profiler is eprof
   ##
-  defp do_start_profiler_profiling(%{profiler: :eprof, set_on_spawn: sos} = state, tracing_processes) do
+  defp do_start_profiler_profiling(%{profiler: :eprof, set_on_spawn: sos, extra_code_pids: extra_pids} = state, tracing_processes) do
     {mod, fun} = get_mf(state)
-    with :profiling <- :eprof.start_profiling(tracing_processes, {mod, fun, :_}, [{:set_on_spawn, sos}])
+    with :profiling <- :eprof.start_profiling(tracing_processes ++ extra_pids, {mod, fun, :_}, [{:set_on_spawn, sos}])
       do
       :ok
     else

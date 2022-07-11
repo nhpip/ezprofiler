@@ -178,6 +178,7 @@ defmodule EZProfiler do
      'l' \"true || false\" permits transition between labels if multiple labels are specified
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
+     'p \"pids\" add extra pids to profile (code profiling only)
      'g' for debugging, returns the state on the target VM
      'h' this help text
      'q' to exit\n")
@@ -217,7 +218,7 @@ defmodule EZProfiler do
         ## Send a unique string to the group leader and it's port.
         ## The main process's IO.gets will then wake up amd receive that string
         ## so it can check its mailbox
-        send(Process.group_leader(), {port, {:data, "profiler_message\n"}})
+        send(Process.group_leader(), {port, {:data, "123profiler_message\n"}})
         do_wait_for_profiler_events(port, pid)
     end
   end
@@ -281,6 +282,15 @@ defmodule EZProfiler do
           ProfilerOnTarget.allow_label_transition(target_node, transition?)
         else
           _ -> display_message({:label_transistion, :error})
+        end
+        wait_for_user_events(%{state | command_count: count+1})
+
+      <<"p", pids::binary>> ->
+        with {:ok, new_pids} <- get_pids(target_node, pids)
+        do
+          ProfilerOnTarget.set_extra_code_pids(target_node, new_pids)
+        else
+          _ -> IO.puts("Can not find one or more of those pids")
         end
         wait_for_user_events(%{state | command_count: count+1})
 
@@ -364,6 +374,18 @@ defmodule EZProfiler do
     end
   end
 
+  defp get_pids(_node, "") do
+    IO.puts("Clear pids")
+    {:ok, []}
+  end
+
+  defp get_pids(node, pids) do
+    IO.inspect(pids)
+    if (real_pids = TermHelper.get_actual_pids(node,  String.trim(pids))) == [],
+      do: :error,
+      else: {:ok, real_pids}
+  end
+
   defp label_transition(allow?) do
     try do
       {allow?, _} = String.trim(allow?) |> Code.eval_string()
@@ -408,7 +430,7 @@ defmodule EZProfiler do
   ##
   ## Get a message forwarded from the proxy
   ##
-  defp handle_erlang_elixir_message("profiler_message") do
+  defp handle_erlang_elixir_message("123profiler_message") do
     receive do
       msg -> msg
     after
