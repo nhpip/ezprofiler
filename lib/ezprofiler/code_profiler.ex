@@ -344,7 +344,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def pipe_profiling(arg, fun) when is_function(fun) do
-    {action, profiled_fun} = do_profiling_setup(fun, :no_label, arg)
+    {action, profiled_fun} = do_profiling_setup(fun, :no_label, [arg])
     rsp = profiled_fun.()
     stop_code_profiling(action, fun, :no_label, rsp)
   end
@@ -482,7 +482,7 @@ defmodule EZProfiler.CodeProfiler do
     stop_code_profiling(Process.get(:ezprofiler, :code_profiling_started), nil, nil, nil)
 
   @doc false
-  def stop_code_profiling(:code_profiling_started, _fun, options, rsp) do
+  def stop_code_profiling(:code_profiling_started, _fun, _options, rsp) do
     pid = self()
     ## Do this instead of Agent.get_and_update/2 to minimize non-profiling functions in the output
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
@@ -539,7 +539,7 @@ defmodule EZProfiler.CodeProfiler do
   end
 
   defp make_response(:pseudo_code_profiling_started = msg, fun, args) do
-    {msg, fn -> :timer.tc(fun, [args]) end}
+    {msg, fn -> :timer.tc(fun, args) end}
   end
 
   defp make_response(msg, fun, :no_args) do
@@ -547,7 +547,7 @@ defmodule EZProfiler.CodeProfiler do
   end
 
   defp make_response(msg, fun, args) do
-    {msg, fn -> fun.(args) end}
+    {msg, fn -> Kernel.apply(fun, args) end}
   end
 
   defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false, label_transition?: false} = state) do

@@ -175,7 +175,7 @@ defmodule EZProfiler do
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
      'c' \"label\" to enable code profiling (once) for label (an atom, string or list of either), e.g. \"c mylabel\" || \"c label1, label2\"
-     'l' \"true || false\" permits transition between labels if multiple labels are specified
+     'l' \"true | false\" permits transition between labels if multiple labels are specified
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
