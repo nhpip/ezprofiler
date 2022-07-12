@@ -103,13 +103,33 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def pseudo_start_code_profiling(label) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_start, label, label})
+  end
+
+  @doc false
+  def pseudo_start_code_profiling(label, display_label) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_start, label, display_label})
+  end
+
+  @doc false
   def stop_code_profiling() do
     :gen_statem.call(:cstop_profiler, :code_stop)
   end
 
   @doc false
+  def pseudo_stop_code_profiling(label, fun, time) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_stop, label, fun, time})
+  end
+
+  @doc false
   def get_state(target_node) do
     :gen_statem.call({:cstop_profiler, target_node}, :get_state)
+  end
+
+  @doc false
+  def get_latest_results(target_node) do
+    :gen_statem.call({:cstop_profiler, target_node}, :get_latest_results)
   end
 
   @doc false
@@ -159,7 +179,8 @@ defmodule EZProfiler.ProfilerOnTarget do
       code_manager_async: false,
       test_pid: nil,
       extra_code_pids: [],
-      label_transition?: opts.label_transition?
+      label_transition?: opts.label_transition?,
+      latest_results: {:no_label, :no_file, ""}
     }
 
     ## Starts the state machine process on the target VM
@@ -205,6 +226,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event({:call, from}, :get_state, _any_state, state) do
     {:keep_state, state, [{:reply, from, state}]}
+  end
+
+  @doc false
+  def handle_event({:call, from}, :get_latest_results, _any_state, state) do
+    {:keep_state, %{state | latest_results: {:no_label, :no_file, ""}}, [{:reply, from, state.latest_results}]}
   end
 
   @doc false
@@ -319,6 +345,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event(:cast, {:allow_label_transition, transition?}, _any_state, state) do
+    CodeProfiler.allow_label_transition(transition?)
     {:keep_state, %{state | label_transition?: transition?}}
   end
 
@@ -338,19 +365,37 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def handle_event(:cast, {:pseudo_code_start, label, display_label}, :profiling, %{current_labels: current_labels, display_labels: dlabels} = state) do
+      {:keep_state, %{state | current_labels: List.delete(current_labels, label), display_labels: List.delete(dlabels, display_label)}}
+  end
+
+  @doc false
   def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
-    current_label = state.current_label
     set_next_state(state)
     respond_to_code(:code, :code_profiling_stopped, [pid])
     profiling_complete(state)
-    File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
+    File.write(file, "\nLabel: #{inspect(state.display_label)}\n", [:append])
+    file_data = File.read!(file)
     display_message(profiler_node, :new_line)
     if state.test_pid, do: send(state.test_pid, {:code_stop, state.display_label})
     if state.code_manager_async,
-       do: respond_to_manager({:results_available, file, File.read!(file)}, cpid),
+       do: respond_to_manager({:results_available, state.display_label, file, File.read!(file)}, cpid),
        else:  respond_to_manager(:results_available, cpid)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal,
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: {state.display_label, file, file_data},
                                       code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+  end
+
+  @doc false
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+    result_str = make_psuedo_results(fun, label, time)
+    display_message(profiler_node, :pseudo_code_profiling, [result_str])
+
+    if state.code_manager_async,
+       do: respond_to_manager({:results_available, label, :no_file, result_str}, cpid),
+       else:  respond_to_manager(:results_available, cpid)
+    if state.test_pid,
+       do: send(state.test_pid, {:code_stop, label})
+    {:keep_state, %{state | latest_results: {label, :no_file, result_str}}}
   end
 
   @doc false
@@ -725,5 +770,17 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   defp lower_label(label), do:
     label
+
+  defp make_psuedo_results(fun, label, time) do
+    fun_info = Function.info(fun)
+    module = Keyword.get(fun_info, :module, "Unknown")
+    name = Keyword.get(fun_info, :name, "unknown")
+    arity = Keyword.get(fun_info, :arity, "?")
+    "\n***********************\n"
+    <> "Pseudo Profiling Result\n"
+    <> "-----------------------\n"
+    <> "Module: #{inspect(module)}, Function: #{inspect(name)}/#{inspect(arity)}, Took: #{inspect(time)} microseconds\n\n"
+    <> "Label: #{inspect(label)}\n"
+  end
 
 end

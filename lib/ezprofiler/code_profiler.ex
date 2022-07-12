@@ -28,7 +28,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def start() do
-    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, labels: []} end, name: __MODULE__)
+    Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, labels: [], label_transition?: false} end, name: __MODULE__)
   end
 
   ##
@@ -46,6 +46,14 @@ defmodule EZProfiler.CodeProfiler do
   @doc false
   def disallow_profiling() do
     Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: []} end)
+  end
+
+  ##
+  ## If label transition is set or unset
+  ##
+  @doc false
+  def allow_label_transition(transition?) do
+    Agent.update(__MODULE__, fn state -> %{state | label_transition?: transition?} end)
   end
 
   ##
@@ -124,7 +132,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def start_code_profiling(options) when is_atom(options) or is_binary(options) do
-    action = do_profiling_setup(nil, options)
+    {action, _} = do_profiling_setup(nil, options, :no_args)
     Process.put(:ezprofiler, action)
   end
 
@@ -229,10 +237,9 @@ defmodule EZProfiler.CodeProfiler do
     function_profiling(fun, args, :no_label)
 
   def function_profiling(fun, label) when is_function(fun) and (is_atom(label) or is_binary(label)) do
-    action = do_profiling_setup(fun, label)
-    rsp = Kernel.apply(fun, [])
-    stop_code_profiling(action)
-    rsp
+   {action, profiled_fun} = do_profiling_setup(fun, label, :no_args)
+    rsp = profiled_fun.()
+    stop_code_profiling(action, fun, label, rsp)
   end
 
   ##
@@ -295,10 +302,9 @@ defmodule EZProfiler.CodeProfiler do
   def function_profiling(fun, args, options)
 
   def function_profiling(fun, args, label) when is_list(args) and is_function(fun) and (is_atom(label) or is_binary(label)) do
-    action = do_profiling_setup(fun, label)
-    rsp = Kernel.apply(fun, args)
-    stop_code_profiling(action)
-    rsp
+    {action, profiled_fun} = do_profiling_setup(fun, label, args)
+    rsp = profiled_fun.()
+    stop_code_profiling(action, fun, label, rsp)
   end
 
   def function_profiling(fun, args, fun2) when is_list(args) and is_function(fun) and is_function(fun2) do
@@ -338,10 +344,9 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def pipe_profiling(arg, fun) when is_function(fun) do
-    action = do_profiling_setup(fun, :no_label)
-    rsp = Kernel.apply(fun, [arg])
-    stop_code_profiling(action)
-    rsp
+    {action, profiled_fun} = do_profiling_setup(fun, :no_label, arg)
+    rsp = profiled_fun.()
+    stop_code_profiling(action, fun, :no_label, rsp)
   end
 
   @doc """
@@ -446,10 +451,9 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun, args, options)
 
   def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
-    action = do_profiling_setup(fun, options)
-    rsp = Kernel.apply(fun, [arg | args])
-    stop_code_profiling(action)
-    rsp
+    {action, profiled_fun} = do_profiling_setup(fun, options, [arg | args])
+    rsp = profiled_fun.()
+    stop_code_profiling(action, fun, options, rsp)
   end
 
   ##
@@ -475,10 +479,10 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def stop_code_profiling(), do:
-    stop_code_profiling(Process.get(:ezprofiler, :code_profiling_started))
+    stop_code_profiling(Process.get(:ezprofiler, :code_profiling_started), nil, nil, nil)
 
   @doc false
-  def stop_code_profiling(:code_profiling_started) do
+  def stop_code_profiling(:code_profiling_started, _fun, options, rsp) do
     pid = self()
     ## Do this instead of Agent.get_and_update/2 to minimize non-profiling functions in the output
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
@@ -493,35 +497,74 @@ defmodule EZProfiler.CodeProfiler do
     after
       1000 -> :error
     end
+    rsp
   end
 
-  def stop_code_profiling(_), do:
-    :ok
+  def stop_code_profiling(:pseudo_code_profiling_started, fun, options, {time, rsp}) do
+    ProfilerOnTarget.pseudo_stop_code_profiling(options, fun, time)
+    rsp
+  end
+
+  def stop_code_profiling(_, _, _, rsp), do:
+    rsp
 
   @doc false
   def get() do
     Agent.get(__MODULE__, &(&1))
   end
 
-  defp do_profiling_setup(fun, options) do
+  defp do_profiling_setup(fun, options, args) do
     try do
       pid = self()
       Agent.get_and_update(__MODULE__, fn state -> do_start_profiling({pid, fun, options}, state) end)
       receive do
-        :code_profiling_started -> :code_profiling_started
-        :code_profiling_not_started_disallowed -> :code_profiling_not_started_disallowed
-        :code_profiling_not_started_invalid_label -> :code_profiling_not_started_invalid_label
+        :code_profiling_started -> make_response(:code_profiling_started, fun, args)
+        :pseudo_code_profiling_started -> make_response(:pseudo_code_profiling_started, fun, args)
+        :code_profiling_not_started_disallowed -> make_response(:code_profiling_not_started_disallowed, fun, args)
+        :code_profiling_not_started_invalid_label -> make_response(:code_profiling_not_started_invalid_label, fun, args)
       after
-        1000 -> :code_profiling_not_started_error
+        1000 -> make_response(:code_profiling_not_started_error, fun, args)
       end
     rescue
-      _ -> :code_profiling_not_started_error
+      _ -> make_response(:code_profiling_not_started_error, fun, args)
     end
   end
 
-  defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false} = state) do
+  defp make_response(:pseudo_code_profiling_started = msg, nil, _args) do
+    {msg, nil}
+  end
+
+  defp make_response(:pseudo_code_profiling_started = msg, fun, :no_args) do
+    {msg, fn -> :timer.tc(fun, []) end}
+  end
+
+  defp make_response(:pseudo_code_profiling_started = msg, fun, args) do
+    {msg, fn -> :timer.tc(fun, [args]) end}
+  end
+
+  defp make_response(msg, fun, :no_args) do
+    {msg, fn -> fun.() end}
+  end
+
+  defp make_response(msg, fun, args) do
+    {msg, fn -> fun.(args) end}
+  end
+
+  defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false, label_transition?: false} = state) do
     send(pid, :code_profiling_not_started_disallowed)
     {false, state}
+  end
+
+  defp do_start_profiling({pid, _fun, in_label}, %{labels: my_labels, allow_profiling: false} = state) do
+    label = lower_label(in_label)
+    if Enum.member?(my_labels, label) do
+      ProfilerOnTarget.pseudo_start_code_profiling(label, in_label)
+      send(pid, :pseudo_code_profiling_started)
+      {false, %{state | labels: List.delete(my_labels, label)}}
+    else
+      send(pid, :code_profiling_not_started_disallowed)
+      {false, state}
+    end
   end
 
   defp do_start_profiling({pid, fun, :no_label = label}, state) do

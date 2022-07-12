@@ -44,7 +44,7 @@ defmodule EZProfiler.CodeMonitor do
       {correct_mod, correct_bin, correct_file} = get_code_profiler_module_bin() ## Grabs the stub one shipped with collection server
 
       ## Start an Agent that EZCodeProfiler will use
-      Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, label: :any_label, labels: []} end, name: EZProfiler.CodeProfiler)
+      Agent.start(fn -> %{allow_profiling: false, clear_pid: nil, label: :any_label, labels: [], label_transition?: false} end, name: EZProfiler.CodeProfiler)
 
       ## Load the EZCodeProfiler module from the escript
       :code.load_binary(profiler_mod, '/tmp/ezcodeprofiler.beam', profiler_bin)
