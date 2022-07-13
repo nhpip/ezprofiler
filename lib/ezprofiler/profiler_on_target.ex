@@ -230,7 +230,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event({:call, from}, :get_latest_results, _any_state, state) do
-    {:keep_state, %{state | latest_results: []}, [{:reply, from, state.latest_results}]}
+    {:keep_state, %{state | latest_results: []}, [{:reply, from, {:profiling_results, state.latest_results}}]}
   end
 
   @doc false
