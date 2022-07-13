@@ -560,7 +560,7 @@ defmodule EZProfiler.CodeProfiler do
     if Enum.member?(my_labels, label) do
       ProfilerOnTarget.pseudo_start_code_profiling(label, in_label)
       send(pid, :pseudo_code_profiling_started)
-      {false, %{state | labels: List.delete(my_labels, label)}}
+      {true, %{state | labels: List.delete(my_labels, label)}}
     else
       send(pid, :code_profiling_not_started_disallowed)
       {false, state}
