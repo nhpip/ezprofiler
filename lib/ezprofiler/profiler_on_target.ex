@@ -381,14 +381,13 @@ defmodule EZProfiler.ProfilerOnTarget do
     if state.test_pid, do:
       send(state.test_pid, {:code_stop, state.display_label})
     if state.code_manager_async do
+      IO.inspect({:llllll, cpid})
       respond_to_manager({:results_available, state.display_label, file, File.read!(file)}, cpid)
-      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal,
-                                        code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
     else
       latest_results = [{state.display_label, file, file_data} | state.latest_results]
       respond_to_manager(:results_available, cpid)
-      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
-                                        code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
     end
   end
 
