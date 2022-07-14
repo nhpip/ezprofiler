@@ -34,7 +34,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def stop_profiling(target_node) do
-    :gen_statem.cast({:cstop_profiler, target_node}, :stop)
+    :gen_statem.call({:cstop_profiler, target_node}, :stop)
   end
 
   @doc false
@@ -419,8 +419,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, :stop, _any_state, state) do
-    {:stop, :normal, state}
+  def handle_event({:call, from}, :stop, _any_state, state) do
+    {:stop, :normal, state, [{:reply, from, :ok}]}
   end
 
   @doc false
