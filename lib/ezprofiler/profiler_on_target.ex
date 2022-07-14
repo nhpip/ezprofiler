@@ -124,7 +124,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def pseudo_stop_code_profiling(label, fun, time) do
-    :gen_statem.call(:cstop_profiler, {:pseudo_code_stop, label, fun, time})
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_stop, label, fun, time})
   end
 
   @doc false
@@ -401,7 +401,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     set_next_state(state)
     result_str = make_pseudo_results(fun, label, time)
     display_message(profiler_node, :pseudo_code_profiling, [result_str])
@@ -409,11 +409,11 @@ defmodule EZProfiler.ProfilerOnTarget do
     if state.test_pid,
        do: send(state.test_pid, {:code_stop, label})
     if state.code_manager_async do
-       respond_to_manager({:ezprofiler, :results_available, label, :no_file, result_str}, cpid)
+       respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
        {:keep_state, state, [{:reply, from, :ok}]}
     else
       latest_results = [{state.display_label, :no_file, result_str} | state.latest_results]
-      respond_to_manager(:results_available, cpid)
+      respond_to_manager(:pseudo_results_available, cpid)
       {:keep_state, %{state | latest_results: latest_results}, [{:reply, from, :ok}]}
     end
   end
