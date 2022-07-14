@@ -420,7 +420,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event({:call, from}, :stop, _any_state, state) do
-    {:stop, :normal, state, [{:reply, from, :ok}]}
+    {:stop_and_reply, :normal, state, [{:reply, from, :ok}]}
   end
 
   @doc false
