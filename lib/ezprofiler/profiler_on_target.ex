@@ -410,11 +410,11 @@ defmodule EZProfiler.ProfilerOnTarget do
        do: send(state.test_pid, {:code_stop, label})
     if state.code_manager_async do
        respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
-       {:keep_state, state, [{:reply, from, :ok}]}
+       {:keep_state, state}
     else
       latest_results = [{state.display_label, :no_file, result_str} | state.latest_results]
       respond_to_manager(:pseudo_results_available, cpid)
-      {:keep_state, %{state | latest_results: latest_results}, [{:reply, from, :ok}]}
+      {:keep_state, %{state | latest_results: latest_results}}
     end
   end
 
