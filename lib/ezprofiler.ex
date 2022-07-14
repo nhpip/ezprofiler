@@ -338,6 +338,10 @@ defmodule EZProfiler do
           {:new_filename, filename} ->
             wait_for_user_events(%{state | results_file: filename})
 
+          :view_results_file ->
+            view_results_file(state)
+            wait_for_user_events(state)
+
           {:display_message, message_details} ->
             display_message(message_details)
             wait_for_user_events(state)

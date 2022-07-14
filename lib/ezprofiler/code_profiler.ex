@@ -552,7 +552,7 @@ defmodule EZProfiler.CodeProfiler do
 
   defp do_start_profiling({pid, _fun, _label}, %{allow_profiling: false, label_transition?: false} = state) do
     send(pid, :code_profiling_not_started_disallowed)
-    {false, state}
+    {false, %{state | labels: []}}
   end
 
   defp do_start_profiling({pid, _fun, in_label}, %{labels: my_labels, allow_profiling: false} = state) do
