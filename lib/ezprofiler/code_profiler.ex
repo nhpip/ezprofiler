@@ -40,6 +40,14 @@ defmodule EZProfiler.CodeProfiler do
   end
 
   ##
+  ## Async version of above
+  ##
+  @doc false
+  def allow_profiling_async(labels) do
+    Agent.cast(__MODULE__, fn state -> %{state | allow_profiling: true, labels: labels} end)
+  end
+
+  ##
   ## When a user hits reset ('r') or a timeout occurs this is called. A subsequent call to
   ## allow_profiling needs to be called again (user hitting 'c')
   ##
@@ -486,21 +494,7 @@ defmodule EZProfiler.CodeProfiler do
     pid = self()
     ## Do this instead of Agent.get_and_update/2 to minimize non-profiling functions in the output
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
-    a = receive do
-      {:no_ref, _} -> :ok
-      :code_profiling_stopped -> :code_profiling_stopped
-      :code_profiling_never_started -> :code_profiling_never_started
-    after
-      1000 -> :error
-    end
-    b = receive do
-      {:no_ref, _} -> :ok
-      :code_profiling_stopped -> :code_profiling_stopped
-      :code_profiling_never_started -> :code_profiling_never_started
-    after
-      1000 -> :error
-    end
-    IO.inspect({a,b})
+    wait_for_stop_events()
     rsp
   end
 
@@ -531,6 +525,18 @@ defmodule EZProfiler.CodeProfiler do
       end
     rescue
       _ -> make_response(:code_profiling_not_started_error, fun, args)
+    end
+  end
+
+  defp wait_for_stop_events() do
+    for _ <- 1..2 do
+      receive do
+        {:no_ref, _} -> :ok
+        :code_profiling_stopped -> :code_profiling_stopped
+        :code_profiling_never_started -> :code_profiling_never_started
+      after
+        1000 -> :error
+      end
     end
   end
 
