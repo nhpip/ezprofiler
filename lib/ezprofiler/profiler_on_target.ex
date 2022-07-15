@@ -322,7 +322,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event(:cast, {:allow_code_profiling, [], pid, keep_settings}, :waiting, %{code_manager_async: async?, profiler_node: profiler_node} = state) do
-    CodeProfiler.allow_profiling(:any_label)
+    spawn(fn -> CodeProfiler.allow_profiling(:any_label) end)
     display_message(profiler_node, :code_prof)
     if keep_settings && async?,
        do: {:keep_state, %{state | latest_results: []}},
@@ -332,7 +332,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event(:cast, {:allow_code_profiling, in_labels, pid, keep_settings}, :waiting, %{code_manager_async: async?, profiler_node: profiler_node} = state) do
     labels = lower_labels(in_labels)
-    CodeProfiler.allow_profiling(labels)
+    #CodeProfiler.allow_profiling(labels)
+    spawn(fn -> CodeProfiler.allow_profiling(:abels) end)
     display_message(profiler_node, :code_prof_label, [in_labels])
     if not keep_settings,
        do: File.rm(@saved_temp_results_file)
