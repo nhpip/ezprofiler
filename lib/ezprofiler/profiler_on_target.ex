@@ -321,22 +321,22 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, [], pid, keep_settings}, :waiting, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, [], pid, keep_settings}, :waiting, %{code_manager_async: async?, profiler_node: profiler_node} = state) do
     CodeProfiler.allow_profiling(:any_label)
     display_message(profiler_node, :code_prof)
-    if keep_settings,
+    if keep_settings && async?,
        do: {:keep_state, %{state | latest_results: []}},
        else: {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid, latest_results: []}}
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, in_labels, pid, keep_settings}, :waiting, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, in_labels, pid, keep_settings}, :waiting, %{code_manager_async: async?, profiler_node: profiler_node} = state) do
     labels = lower_labels(in_labels)
     CodeProfiler.allow_profiling(labels)
     display_message(profiler_node, :code_prof_label, [in_labels])
     if not keep_settings,
        do: File.rm(@saved_temp_results_file)
-    if keep_settings,
+    if keep_settings && async?,
       do: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, latest_results: []}},
       else: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true,
                                     code_manager_async: false, code_manager_pid: pid, latest_results: []}}
