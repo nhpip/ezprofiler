@@ -397,11 +397,11 @@ defmodule EZProfiler.ProfilerOnTarget do
     respond_to_tester(state.test_pid, state.display_label)
 
     if state.code_manager_async do
-      respond_to_tester(state.test_pid, :normal_a)
+      respond_to_tester(state.test_pid, {:normal_a,result_str})
       respond_to_manager({:ezprofiler, :results_available, state.display_label, filename, result_str}, cpid)
       {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
     else
-      respond_to_tester(state.test_pid, :normal_s)
+      respond_to_tester(state.test_pid, {:normal_s,result_str})
       latest_results = [{state.display_label, filename, result_str} | state.latest_results]
       respond_to_manager(:results_available, cpid)
       {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
