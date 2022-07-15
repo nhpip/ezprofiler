@@ -387,8 +387,8 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: filename, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
-    set_next_state(state)
-    respond_to_code(:code, :code_profiling_stopped, [pid])
+    #set_next_state(state)
+    #respond_to_code(:code, :code_profiling_stopped, [pid])
     profiling_complete(:code_stop, state)
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
@@ -399,18 +399,20 @@ defmodule EZProfiler.ProfilerOnTarget do
     if state.code_manager_async do
      # respond_to_tester(state.test_pid, {:normal_a,result_str,state.display_label})
       respond_to_manager({:ezprofiler, :results_available, state.display_label, filename, result_str}, cpid)
-      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+      {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal,
+                                                       current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     else
     #  respond_to_tester(state.test_pid, {:normal_s,result_str,state.display_label})
       latest_results = [{state.display_label, filename, result_str} | state.latest_results]
       respond_to_manager(:results_available, cpid)
-      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+      {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
+                                                       current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     end
   end
 
   @doc false
   def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
-    set_next_state(state)
+    #set_next_state(state)
     profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
     result_str = make_final_results(:pseudo_code_stop, state)
                  |> finalize_results_file(state)
@@ -422,12 +424,12 @@ defmodule EZProfiler.ProfilerOnTarget do
     if state.code_manager_async do
      # respond_to_tester(state.test_pid, {:pseudo_a,result_str,label})
       respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
-       {:keep_state, state}
+       {:keep_state, set_next_state(state)}
     else
    #   respond_to_tester(state.test_pid, {:pseudo_s,result_str,label})
       latest_results = [{state.display_label, :no_file, result_str} | state.latest_results]
       respond_to_manager(:pseudo_results_available, cpid)
-      {:keep_state, %{state | latest_results: latest_results}}
+      {:keep_state, set_next_state(%{state | latest_results: latest_results})}
     end
   end
 
@@ -803,14 +805,23 @@ defmodule EZProfiler.ProfilerOnTarget do
     end
   end
 
-  defp set_next_state(%{current_labels: []} = _state), do:
-    :ok
-    
-  defp set_next_state(%{display_labels: current_labels, label_transition?: true} = _state), do:
-   auto_allow_code_profiling(node(), current_labels)
-   
-  defp set_next_state(_state), do:
-    :ok
+  #      {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+  defp set_next_state(%{current_labels: [], code_tracing_pid: pid} = state) do
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    state
+  end
+
+  defp set_next_state(%{display_labels: current_labels, label_transition?: true, code_tracing_pid: pid} = state) do
+    {_, next_state} = handle_event(:cast, {:allow_code_profiling, current_labels, nil, true}, :waiting, state)
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    next_state
+    #auto_allow_code_profiling(node(), current_labels)
+  end
+
+  defp set_next_state(%{code_tracing_pid: pid} = state) do
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    state
+  end
 
   defp lower_labels(labels), do:
     Enum.map(labels, &(lower_label(&1)))
