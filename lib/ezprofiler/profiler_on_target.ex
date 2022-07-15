@@ -397,9 +397,11 @@ defmodule EZProfiler.ProfilerOnTarget do
     respond_to_tester(state.test_pid, state.display_label)
 
     if state.code_manager_async do
+      respond_to_tester(state.test_pid, :normal_a)
       respond_to_manager({:ezprofiler, :results_available, state.display_label, filename, result_str}, cpid)
       {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
     else
+      respond_to_tester(state.test_pid, :normal_s)
       latest_results = [{state.display_label, filename, result_str} | state.latest_results]
       respond_to_manager(:results_available, cpid)
       {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
@@ -418,9 +420,11 @@ defmodule EZProfiler.ProfilerOnTarget do
     respond_to_tester(state.test_pid, label)
 
     if state.code_manager_async do
-       respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
+      respond_to_tester(state.test_pid, :pseudo_a)
+      respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
        {:keep_state, state}
     else
+      respond_to_tester(state.test_pid, :pseudo_s)
       latest_results = [{state.display_label, :no_file, result_str} | state.latest_results]
       respond_to_manager(:pseudo_results_available, cpid)
       {:keep_state, %{state | latest_results: latest_results}}
@@ -840,7 +844,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   defp respond_to_tester(test_pid, display_label) when is_pid(test_pid) do
     if test_pid, do:
-      send(test_pid, {:code_stop,display_label})
+      send(test_pid, {:code_stop, display_label})
   end
 
   defp respond_to_tester(_, _), do:
