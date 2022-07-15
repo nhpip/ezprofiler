@@ -326,7 +326,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     display_message(profiler_node, :code_prof)
     if keep_settings && async?,
        do: {:keep_state, %{state | latest_results: []}},
-       else: {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid, latest_results: []}}
+       else: {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid}}
   end
 
   @doc false
@@ -339,7 +339,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     if keep_settings && async?,
       do: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, latest_results: []}},
       else: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true,
-                                    code_manager_async: false, code_manager_pid: pid, latest_results: []}}
+                                    code_manager_async: false, code_manager_pid: pid}}
 
   end
 
