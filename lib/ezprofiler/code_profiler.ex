@@ -488,10 +488,13 @@ defmodule EZProfiler.CodeProfiler do
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
     a = receive do
       {:no_ref, _} -> :ok
+      :code_profiling_stopped -> :code_profiling_stopped
+      :code_profiling_never_started -> :code_profiling_never_started
     after
       1000 -> :error
     end
     b = receive do
+      {:no_ref, _} -> :ok
       :code_profiling_stopped -> :code_profiling_stopped
       :code_profiling_never_started -> :code_profiling_never_started
     after
