@@ -398,7 +398,7 @@ defmodule EZProfiler.ProfilerOnTarget do
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     else
-      latest_results = [{state.display_label, filename, result_str} | state.latest_results]
+      latest_results = [{state.display_label, :normal, filename, result_str} | state.latest_results]
       respond_to_manager(:results_available, cpid)
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
@@ -419,7 +419,7 @@ defmodule EZProfiler.ProfilerOnTarget do
       respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
        {:keep_state, set_next_state(state)}
     else
-      latest_results = [{state.display_label, :no_file, result_str} | state.latest_results]
+      latest_results = [{state.display_label, :pseudo, :no_file, result_str} | state.latest_results]
       respond_to_manager(:pseudo_results_available, cpid)
       {:keep_state, set_next_state(%{state | latest_results: latest_results})}
     end
