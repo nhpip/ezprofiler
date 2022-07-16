@@ -803,9 +803,9 @@ defmodule EZProfiler.ProfilerOnTarget do
     state
   end
 
-  defp set_next_state(%{display_labels: current_labels, label_transition?: true, code_tracing_pid: pid} = state) do
+  defp set_next_state(%{display_labels: current_labels, label_transition?: true, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
     respond_to_code(:code, :code_profiling_stopped, [pid])
-    {_, next_state} = handle_event(:cast, {:allow_code_profiling, current_labels, nil, true}, :waiting, state)
+    {_, next_state} = handle_event(:cast, {:allow_code_profiling, current_labels, cpid, true}, :waiting, state)
     next_state
     #auto_allow_code_profiling(node(), current_labels)
   end
