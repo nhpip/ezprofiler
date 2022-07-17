@@ -49,13 +49,14 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom or string), e.g. "c special_atom"
+     'c' "label" to enable code profiling (once) for label (an atom, string or list of either), e.g. "c mylabel" || "c label1, label2"
+     'l' "true | false" permits transition between labels if multiple labels are specified
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
      'h' this help text
      'q' to exit
-
+     
 waiting..(1)>
 ```
 Profiling has currently not started. The user selects `'s'` to commence profiling:
@@ -172,8 +173,42 @@ def foo(data) do
    x = function1()
    data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
 end
-
 ```
+### A word about Labels
+Labels are used to identify what code you want to profile, where each piece of code has its own label. For example
+a web-server may have something like:
+```
+EZProfiler.CodeProfiler.function_profiling(&ParseModule.parse_http/1, [http_string], "fred@shoes.com")
+```
+From within the CLI the user can then select:
+```
+waiting..(1)> c fred@shoes.com
+waiting..(2)>
+Code profiling enabled with label(s) of fred@shoes.com
+```
+Or from code:
+```elixir
+EZProfiler.Manager.enable_code_profiling("fred@shoes.com")
+```
+In both those cases only a web request from `fred@shoes.com` will be selected for profling (using an anonymous function to select the label can make the code dynamic).
+
+Labels can be `atoms`, `strings` or when selecting code to profile a `list of labels`
+```
+waiting..(3)> c fred@shoes.com, sue@shoes.com, :mgmt_utils
+waiting..(4)>
+Code profiling enabled with label(s) of fred@shoes.com, sue@shoes.com, :mgmt_utils
+
+```elixir
+EZProfiler.Manager.enable_code_profiling(["fred@shoes.com", sue@shoes.com, :mgmt_utils])
+```
+When using a list of labels there are two modes, label transition (`labeltran`) `true` or `false`, the default is `false`. The behavior is as follows:
+
+#### Label Translation `false`
+This effectively a request to profile `one-of` those labels. The first matching label is selected for profiling and the rest of the labels are ignored.
+
+#### Label Translation `true`
+In this case all specified labels shall be profiled sequentially (order doesn't matter), effectively the profiler automatically re-enables profiling after a label match. A label that matches and is profiled will removed from the list of labels to be profiled next time. This allows profiling to follow the flow of code through your application, even if processes are switched. It is important to note that the rule of only one process at a time can be profiled still exists. However, if there are profling blocks that overlap  in time `ezprofiler` performs `pseudo profiling` where `ezprofiler` will at least indiciate how long the profiled code took to execute.
+
 ### Code profiling via the ezprofiler shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
@@ -187,13 +222,14 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom or string), e.g. "c mylabel"
+     'c' "label" to enable code profiling (once) for label (an atom, string or list of either), e.g. "c mylabel" || "c label1, label2"
+     'l' "true | false" permits transition between labels if multiple labels are specified
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
      'h' this help text
      'q' to exit
-
+     
 waiting..(1)> c
 waiting..(2)>
 Code profiling enabled
@@ -299,6 +335,8 @@ ezprofiler:
  
  --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls
  
+ --labeltran: permits transition between labels if multiple labels are specified
+  
  --help: this page
 ```
 
