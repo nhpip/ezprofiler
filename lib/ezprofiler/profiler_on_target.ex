@@ -412,7 +412,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node, profiler: profiler} = state) do
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
     result_str = make_final_results(:pseudo_code_stop, state)
                  |> finalize_results_file(state)
@@ -423,7 +423,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     results_map = %{type: :pseudo,
                     label: label,
                     filename: :no_file,
-                    profiler: profiler,
+                    profiler: :no_profiler,
                     results_data: result_str}
 
     if state.code_manager_async do
