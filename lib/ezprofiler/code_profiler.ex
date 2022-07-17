@@ -141,7 +141,8 @@ defmodule EZProfiler.CodeProfiler do
   """
   def start_code_profiling(options) when is_atom(options) or is_binary(options) do
     {action, _} = do_profiling_setup(nil, options, :no_args)
-    Process.put(:ezprofiler, action)
+    Process.put(:ezprofiler_data, [action, options, :os.timestamp()])
+    :ok
   end
 
   ##
@@ -486,8 +487,11 @@ defmodule EZProfiler.CodeProfiler do
   Stops profiling a block oof code started with `start_code_profiling(..)`
 
   """
-  def stop_code_profiling(), do:
-    stop_code_profiling(Process.get(:ezprofiler, :code_profiling_started), nil, nil, nil)
+  def stop_code_profiling() do
+    [action, label, start_time] = Process.get(:ezprofiler_data, [:code_profiling_started, :no_label, :os.timestamp()])
+
+    stop_code_profiling(action, :no_fun, label, {:timer.now_diff(:os.timestamp(), start_time), :ok})
+  end
 
   @doc false
   def stop_code_profiling(:code_profiling_started, _fun, _options, rsp) do

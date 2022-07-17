@@ -425,7 +425,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     filename: :no_file,
                     profiler: :no_profiler,
                     results_data: result_str}
-
+    
     if state.code_manager_async do
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
       {:keep_state, set_next_state(state)}
@@ -623,7 +623,9 @@ defmodule EZProfiler.ProfilerOnTarget do
   ## On user-request, timeout or code profiling complete we call this to get the profiling results
   ##
   defp profiling_complete(:pseudo_code_stop, %{temp_pseudo_data: {fun, label, time}, current_results_filename: filename} = _state) do
-    fun_info = Function.info(fun)
+    fun_info = if fun == :no_fun,
+                  do: [module: "Code Block", name: "Code Block", arity: :none],
+                  else: Function.info(fun)
     module = Keyword.get(fun_info, :module, "Unknown")
     name = Keyword.get(fun_info, :name, "unknown")
     arity = Keyword.get(fun_info, :arity, "?")
