@@ -290,8 +290,10 @@ stop_ezprofler/0    # Stops the profiler
 enable_profiling/0  # Start profiling, same as `c` from the CLI
 enable_profiling/1  # Start profiling with a label, same as `c label` from the CLI
 
-wait_for_results/0  # Blocks, and waits for results (up to 60 seconds)
-wait_for_results/1  # Blocks, and waits for results for the time, in seconds
+wait_for_results/0  # Blocks, and waits for results (up to 5000 milliseconds)
+wait_for_results/1  # Blocks, and waits for results for the time, in milliseconds
+
+allow_label_transition/1 # Enables or disables label transition
 
 wait_for_results_non_block/2  # As `wait_for_results` but is non-blocking. Instead a message is sent to `self()` or the specified pid
 
