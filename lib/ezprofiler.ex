@@ -157,6 +157,7 @@ defmodule EZProfiler do
                 current_state: :waiting,
                 profiler_pid: profiler_pid,
                 monitor_pid: monitor_pid,
+                current_labels: [],
                 results_file: nil}
 
       ## Since this "main" process is blocked waiting on user input spawn a process that proxies inbound messages from the target
@@ -225,7 +226,7 @@ defmodule EZProfiler do
   ##
   ## The "main process" waits for user input
   ##
-  defp wait_for_user_events(%{target_node: target_node, command_count: count, original_mod_fun: orig_mod_fun} = state) do
+  defp wait_for_user_events(%{target_node: target_node, command_count: count, original_mod_fun: orig_mod_fun, current_labels: current_labels} = state) do
     prompt = make_prompt(state)
     case IO.gets(prompt) |> String.trim() do
       "s" ->
@@ -263,16 +264,18 @@ defmodule EZProfiler do
 
       "c" ->
        ProfilerOnTarget.allow_code_profiling(target_node, [])
-       wait_for_user_events(%{state | command_count: count+1})
+       wait_for_user_events(%{state | command_count: count+1, current_labels: []})
 
       <<"c", labels::binary>> ->
-        with {:ok, labels} <- get_label(labels)
+        with {:ok, labels} <- get_label(labels, current_labels)
         do
           ProfilerOnTarget.allow_code_profiling(target_node, labels)
+          wait_for_user_events(%{state | command_count: count+1, current_labels: labels})
         else
-          _ -> display_message(:bad_label)
+          _ ->
+            display_message(:bad_label)
+            wait_for_user_events(%{state | command_count: count+1})
         end
-        wait_for_user_events(%{state | command_count: count+1})
 
       <<"l", bool::binary>> ->
         with {:ok, transition?} <- label_transition(bool)
@@ -379,7 +382,7 @@ defmodule EZProfiler do
     end
   end
 
-  defp get_label(labels) do
+  defp get_label(labels, current_labels) do
     new_labels =
       String.trim(labels)
       |> String.replace("[", "")
@@ -391,9 +394,13 @@ defmodule EZProfiler do
               do: do_get_label(label),
               else: do_get_label("\"#{label}\"")
       end)
-      if Enum.member?(new_labels, :error),
-        do: :error,
-        else: {:ok, new_labels}
+      if Enum.member?(new_labels, :error) do
+        :error
+      else
+        if new_labels == ["r"],
+          do: {:ok, current_labels},
+          else: {:ok, new_labels}
+      end
   end
 
   defp do_get_label(label) do
