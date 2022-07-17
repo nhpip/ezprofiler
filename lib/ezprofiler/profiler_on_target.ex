@@ -386,41 +386,52 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
     profiling_complete(:code_stop, state)
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
     display_message(profiler_node, :new_line)
     respond_to_tester(state.test_pid, state.display_label)
 
+    results_map = %{type: :normal,
+                    label: state.display_label,
+                    filename: filename,
+                    profiler: profiler,
+                    results_data: result_str}
+
     if state.code_manager_async do
-      respond_to_manager({:ezprofiler, :results_available, state.display_label, filename, result_str}, cpid)
+      respond_to_manager({:ezprofiler_results, results_map}, cpid)
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     else
-      latest_results = [{state.display_label, :normal, filename, result_str} | state.latest_results]
-      respond_to_manager(:results_available, cpid)
+      latest_results = [results_map | state.latest_results]
+      respond_to_manager({:results_available, results_map}, cpid)
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     end
   end
 
   @doc false
-  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{code_manager_pid: cpid, profiler_node: profiler_node, profiler: profiler} = state) do
     profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
     result_str = make_final_results(:pseudo_code_stop, state)
                  |> finalize_results_file(state)
 
     display_message(profiler_node, :pseudo_code_profiling, [result_str])
-
     respond_to_tester(state.test_pid, label)
 
+    results_map = %{type: :pseudo,
+                    label: label,
+                    filename: filename,
+                    profiler: profiler,
+                    results_data: result_str}
+
     if state.code_manager_async do
-      respond_to_manager({:ezprofiler, :pseudo_results_available, label, :no_file, result_str}, cpid)
-       {:keep_state, set_next_state(state)}
+      respond_to_manager({:ezprofiler_results, results_map}, cpid)
+      {:keep_state, set_next_state(state)}
     else
-      latest_results = [{state.display_label, :pseudo, :no_file, result_str} | state.latest_results]
-      respond_to_manager(:pseudo_results_available, cpid)
+      latest_results = [results_map | state.latest_results]
+      respond_to_manager({:results_available, results_map}, cpid)
       {:keep_state, set_next_state(%{state | latest_results: latest_results})}
     end
   end
@@ -556,9 +567,9 @@ defmodule EZProfiler.ProfilerOnTarget do
   ##
   ## Start profiling if profiler is eprof
   ##
-  defp do_start_profiler_profiling(%{profiler: :eprof, set_on_spawn: sos, extra_code_pids: extra_pids} = state, tracing_processes) do
+  defp do_start_profiler_profiling(%{profiler: :eprof, set_on_spawn: sos} = state, tracing_processes) do
     {mod, fun} = get_mf(state)
-    with :profiling <- :eprof.start_profiling(tracing_processes ++ extra_pids, {mod, fun, :_}, [{:set_on_spawn, sos}])
+    with :profiling <- :eprof.start_profiling(tracing_processes, {mod, fun, :_}, [{:set_on_spawn, sos}])
       do
       :ok
     else
