@@ -422,7 +422,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
     results_map = %{type: :pseudo,
                     label: label,
-                    filename: filename,
+                    filename: :no_file,
                     profiler: profiler,
                     results_data: result_str}
 
