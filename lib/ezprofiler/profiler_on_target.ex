@@ -310,14 +310,14 @@ defmodule EZProfiler.ProfilerOnTarget do
     do_state_change(profiler_node, :waiting)
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: []}, [{:reply, from, :ok}]}
+    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: [], latest_results: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
   def handle_event({:call, from}, :reset, _other_state, %{profiler_node: profiler_node} = state) do
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:keep_state, %{state | pending_code_profiling: false, code_profile_fun: nil}, [{:reply, from, :ok}]}
+    {:keep_state, %{state | pending_code_profiling: false, code_profile_fun: nil, latest_results: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
