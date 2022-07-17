@@ -204,10 +204,10 @@ EZProfiler.Manager.enable_code_profiling(["fred@shoes.com", sue@shoes.com, :mgmt
 When using a list of labels there are two modes, label transition (`labeltran`) `true` or `false`, the default is `false`. The behavior is as follows:
 
 #### Label Translation `false`
-This effectively a request to profile `one-of` those labels. The first matching label is selected for profiling and the rest of the labels are ignored.
+This effectively a request to profile *one-of* those labels. The first matching label is selected for profiling and the rest of the labels are ignored.
 
 #### Label Translation `true`
-In this case all specified labels shall be profiled sequentially (order doesn't matter), effectively the profiler automatically re-enables profiling after a label match. A label that matches and is profiled will removed from the list of labels to be profiled next time. This allows profiling to follow the flow of code through your application, even if processes are switched. It is important to note that the rule of only one process at a time can be profiled still exists. However, if there are profling blocks that overlap  in time `ezprofiler` performs `pseudo profiling` where `ezprofiler` will at least indiciate how long the profiled code took to execute.
+In this case all specified labels shall be profiled sequentially (order doesn't matter), effectively the profiler automatically re-enables profiling after a label match. A label that matches and is profiled will removed from the list of labels to be profiled next time. This allows profiling to follow the flow of code through your application, even if processes are switched. It is important to note that the rule of only one process at a time can be profiled still exists, so ideally they should be sequential. However, if there are sections of want to be profiled code that overlap  in time `ezprofiler` performs `pseudo profiling` where `ezprofiler` will at least indiciate how long the profiled code took to execute.
 
 ### Code profiling via the ezprofiler shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
