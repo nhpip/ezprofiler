@@ -425,7 +425,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     filename: :no_file,
                     profiler: :no_profiler,
                     results_data: result_str}
-    
+
     if state.code_manager_async do
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
       {:keep_state, set_next_state(state)}
