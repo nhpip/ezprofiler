@@ -401,7 +401,6 @@ defmodule EZProfiler.ProfilerOnTarget do
   def handle_event(:cast, {:code_start, pid, fun, label, display_label}, :waiting, %{profiler: profiler, profiler_node: profiler_node, profiling_start_wait_ref: sref,
                                                                                      current_labels: current_labels, display_labels: dlabels, cp_started: cp_started} = state) do
     if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
-    respond_to_tester(state.test_pid, :nstart)
 
     display_message(profiler_node, :code_start, [display_label])
     case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, code_tracing_pid: pid}) do
@@ -414,15 +413,12 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event(:cast, {:pseudo_code_start, label, display_label}, :profiling, %{profiler: profiler, current_labels: current_labels, display_labels: dlabels, profiling_start_wait_ref: sref, cp_started: cp_started} = state) do
       if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
-      respond_to_tester(state.test_pid, :pstart)
       {:keep_state, %{state | profiling_start_wait_ref: nil, current_labels: List.delete(current_labels, label), display_labels: List.delete(dlabels, display_label), cp_started: cp_started + 1}}
   end
 
   @doc false
   def handle_event({:call, from}, :code_stop, :profiling, %{cp_started: cp_started, profiler_node: profiler_node, current_results_filename: filename,
                                                             code_manager_pid: cpid, profiler: profiler} = state) when cp_started > 0 do
-    respond_to_tester(state.test_pid, :dddddddddddd)
-
     profiling_complete(:code_stop, state)
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
@@ -436,25 +432,19 @@ defmodule EZProfiler.ProfilerOnTarget do
                     results_data: result_str}
 
     if state.code_manager_async do
-      respond_to_tester(state.test_pid, :cstop0)
-
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, cp_started: cp_started - 1,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     else
       latest_results = [results_map | state.latest_results]
       respond_to_manager({:results_available, results_map}, cpid)
-      respond_to_tester(state.test_pid, :cstop1)
-
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
                                                        cp_started: cp_started - 1, current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     end
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, _any_state, %{display_labels: current_labels, code_manager_pid: cpid} =state) do
-    respond_to_tester(state.test_pid, {:cstop22,state.cp_started, current_labels})
-
+  def handle_event({:call, from}, :code_stop, _any_state, state) do
     {:keep_state, state, [{:reply, from, :ok}]}
   end
 
@@ -472,7 +462,6 @@ defmodule EZProfiler.ProfilerOnTarget do
                     filename: :no_file,
                     profiler: :no_profiler,
                     results_data: result_str}
-    respond_to_tester(state.test_pid, :cstop4)
 
     if state.code_manager_async do
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
