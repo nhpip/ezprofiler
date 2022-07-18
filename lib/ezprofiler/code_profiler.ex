@@ -1,19 +1,45 @@
 defmodule EZProfiler.CodeProfiler do
   @moduledoc """
-  This module handles code profiling. The user hits `c` or `c label` and any process whose code calls the function
-  `EZCodeProfiler.start_profiling` will be profiled until `EZCodeProfiler.stop_profiling` is called. Only a single
-  process at a time can be profiled. Other profiling functions allow for pipe profiling and function profiling.
+  This module handles code profiling. The user hits `c` or `c label` or `EZProfiler.Manager.enable_profiling/1` and any process whose code calls
+  one of the profiling functions is profiled. Only a single process at a time can be profiled, although label transition can assist in that.
 
-  The module is loaded from the escript, replacing the one in the release, the reverse happens when the escript terminates.
+  The module is loaded from the escript, replacing the one in the application, the reverse happens when the escript terminates.
+
   The module in the release has functions like:
 
       def start_profiling() do
 
       end
 
-  So they are all no-ops with no run-time cost.
+  So they are mostly no-ops, with no run-time cost.
 
   There is a minimal run-time cost when the module is loaded, as much as a message to an Agent.
+
+  ## Block Profiling
+  Profile a block of code. If the function `EZCodeProfiler.start_profiling` is called, any code between that and `EZCodeProfiler.stop_profiling` is profiled.
+
+  ## Function Profiling
+  Profiles a specific function using `EZProfiler.CodeProfiler.function_profiling`.
+
+  ## Pipe Profiling
+  Profiles a function within an Elixir pipe using `EZProfiler.CodeProfiler.pipe_profiling`.
+
+  ## Labels
+  When using either the CLI `c labels` or `EZProfiler.Manager.enable_profiling/1` either a single label or a list of labels can be specified. In the case
+  of a list there are two modes of operation, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
+
+  #### Label Transition `false`
+  This effectively a request to profile *one-of* those labels. The first matching label is selected for profiling and the rest of the labels are ignored.
+
+  #### Label Transition `true`
+  In this case all specified labels shall be profiled sequentially (order doesn't matter), effectively the profiler automatically re-enables profiling after a label match.
+  A label that matches and is profiled, will removed from the list of labels to be profiled next and profiling is re-enabled for the remaining labels.
+  This allows profiling to follow the flow of code through your application, even if processes are switched. It is important to note that the rule of only one process
+  at a time can be profiled still exists, so ideally they should be sequential.
+
+  However, if there are sections of want to be profiled code that overlap in time `ezprofiler` performs `pseudo profiling` where `ezprofiler` will at least calculate and
+  display how long the profiled code took to execute.
+
   """
 
   use Agent
@@ -230,12 +256,17 @@ defmodule EZProfiler.CodeProfiler do
 
   Or with a label:
 
-       waiting..(4)> c :my_label
+       waiting..(4)> c :my_label, bob@foo.com
        waiting..(5)>
-       Code profiling enabled with a label of :my_label
+       Code profiling enabled with a label of :my_label, bob@foo.com
 
        waiting..(5)>
        Got a start profiling from source code with label of :my_label
+
+  Or using `EZProfiler.Manager`:
+
+       # Will profile :my_label and/or "bob@foo.com", see main help on label transition
+       EZProfiler.Manager.enable_profiling([:my_label, "bob@foo.com"])
 
   **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
@@ -304,6 +335,10 @@ defmodule EZProfiler.CodeProfiler do
 
        waiting..(5)>
        Got a start profiling from source code with label of "Profile 52"
+
+  Or using `EZProfiler.Manager`:
+
+       EZProfiler.Manager.enable_profiling("Profile 52")
 
   **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
@@ -402,6 +437,7 @@ defmodule EZProfiler.CodeProfiler do
          |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
          |> function2()
       end
+
   """
   def pipe_profiling(arg, fun, options)
 
@@ -453,6 +489,10 @@ defmodule EZProfiler.CodeProfiler do
 
       waiting..(5)>
       Got a start profiling from source code with label of :my_label
+
+  Or using `EZProfiler.Manager`:
+
+      EZProfiler.Manager.enable_profiling([:my_label, "bob@foo.com"])
 
     **NOTE:** If anonymous function is used it must return a label to allow profiling or the atom `:nok` to not profile.
 
