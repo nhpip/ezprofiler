@@ -170,7 +170,7 @@ defmodule EZProfiler.CodeProfiler do
   def start_code_profiling(options) when is_atom(options) or is_binary(options) do
     {action, _} = do_profiling_setup(nil, options, :no_args)
     Process.put(:ezprofiler_data, [action, options, :os.timestamp()])
-    :ok
+    action
   end
 
   ##
