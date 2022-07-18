@@ -444,7 +444,6 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event({:call, from}, :code_stop, _any_state, %{code_manager_pid: cpid} =state) do
-    respond_to_manager({:ezprofiler, :cstot}, cpid)
     {:keep_state, state, [{:reply, from, :ok}]}
   end
 
