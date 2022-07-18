@@ -325,6 +325,8 @@ defmodule EZProfiler.ProfilerOnTarget do
     do_state_change(profiler_node, :waiting)
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
+    respond_to_tester(state.test_pid, :reset)
+
     {:next_state, :waiting, %{state | pending_code_profiling: false, timer_ref: nil, profiling_start_wait_ref: nil, cp_started: false, profiling_type_state: :normal, monitors: [], latest_results: []}, [{:reply, from, :ok}]}
   end
 
