@@ -199,6 +199,7 @@ waiting..(3)> c fred@shoes.com, sue@shoes.com, :mgmt_utils
 waiting..(4)>
 Code profiling enabled with label(s) of fred@shoes.com, sue@shoes.com, :mgmt_utils
 ```
+
 ```elixir
 EZProfiler.Manager.enable_code_profiling([fred@shoes.com, sue@shoes.com, :mgmt_utils])
 ```
