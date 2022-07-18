@@ -504,6 +504,7 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
     {action, profiled_fun} = do_profiling_setup(fun, options, [arg | args])
     rsp = profiled_fun.()
+    IO.inspect(action)
     stop_code_profiling(action, fun, options, rsp)
   end
 
