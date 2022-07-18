@@ -15,7 +15,7 @@ defmodule EZProfiler do
   ##  the target VM, a proxy process on the escript node and waits for user input
   ##
 
-  @max_profile_time 300 # 300 seconds
+  @max_profile_time 5000 # 5 seconds
   @waiting_prompt "waiting.."
   @profiling_prompt "profiling"
 
@@ -128,7 +128,7 @@ defmodule EZProfiler do
           process_configuration: process_cfg,
           set_on_spawn: Keyword.get(opts, :sos, false),
           directory: Keyword.get(opts, :directory, false),
-          max_time: Keyword.get(opts, :maxtime, @max_profile_time) * 1000,
+          max_time: Keyword.get(opts, :maxtime, @max_profile_time),
           code_profiler_fun_only: Keyword.get(opts, :cpfo, false),
           label_transition?: Keyword.get(opts, :labeltran, false)
       }
@@ -589,7 +589,7 @@ defmodule EZProfiler do
     )
 
     IO.puts(" --directory: where to store the results\n")
-    IO.puts(" --maxtime: the maximum time we wait for profiling to start (default 300 seconds)\n")
+    IO.puts(" --maxtime: the maximum time we wait for profiling to complete in milliseconds (default 5000 milliseconds)\n")
     IO.puts(" --profiler: one of eprof, cprof or fprof, default eprof\n")
     IO.puts(" --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof\n")
     IO.puts(" --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls\n")
