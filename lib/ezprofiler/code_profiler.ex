@@ -25,7 +25,7 @@ defmodule EZProfiler.CodeProfiler do
   Profiles a function within an Elixir pipe using `EZProfiler.CodeProfiler.pipe_profiling`.
 
   **NOTE:** The function we want to profile for function profiling and pipe function is specified as a function capture. It is recommended to include the module name (`&MyModule.foo/1` not `&foo/1`)
-  
+
   ## Labels
   When using either the CLI `c labels` or `EZProfiler.Manager.enable_profiling/1` either a single label or a list of labels can be specified. In the case
   of a list there are two modes of operation, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
