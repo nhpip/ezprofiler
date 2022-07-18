@@ -499,6 +499,8 @@ defmodule EZProfiler.ProfilerOnTarget do
     CodeProfiler.allow_profiling([])
     profiling_complete(:any, state)
 
+    respond_to_tester(state.test_pid, :pto)
+
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
 
@@ -928,6 +930,6 @@ defmodule EZProfiler.ProfilerOnTarget do
     CodeProfiler.allow_profiling_async(labels)
 
   defp allow_profiling_again(labels, _state), do:
-    CodeProfiler.allow_profiling_async(labels)
+    :ok #CodeProfiler.allow_profiling_async(labels)
 
 end
