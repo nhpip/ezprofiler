@@ -530,7 +530,7 @@ defmodule EZProfiler.CodeProfiler do
 
   """
   def stop_code_profiling() do
-    [action, label, start_time] = Process.get(:ezprofiler_data, [:code_profiling_started, :no_label, :os.timestamp()])
+    [action, label, start_time] = Process.get(:ezprofiler_data, [:code_profiling_not_started, :no_label, :os.timestamp()])
 
     stop_code_profiling(action, :no_fun, label, {:timer.now_diff(:os.timestamp(), start_time), :ok})
   end
