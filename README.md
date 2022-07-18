@@ -198,9 +198,9 @@ Labels can be `atoms`, `strings` or when selecting code to profile a `list of la
 waiting..(3)> c fred@shoes.com, sue@shoes.com, :mgmt_utils
 waiting..(4)>
 Code profiling enabled with label(s) of fred@shoes.com, sue@shoes.com, :mgmt_utils
-
+```
 ```elixir
-EZProfiler.Manager.enable_code_profiling(["fred@shoes.com", sue@shoes.com, :mgmt_utils])
+EZProfiler.Manager.enable_code_profiling([fred@shoes.com, sue@shoes.com, :mgmt_utils])
 ```
 When using a list of labels there are two modes, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
 
@@ -367,29 +367,29 @@ ezprofiler:
 ```
 ### Function Profiling
 ```elixir
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, :my_label)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0, :my_label)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, fn -> shall_we_profile?() end)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0, fn -> shall_we_profile?() end)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10])
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10])
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], :my_label)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10], :my_label)
      
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
 ```
 ### Pipe Profiling
 ```elixir
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1) |> Enum.sum()
 
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, :my_label) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1, :my_label) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, fn -> shall_we_profile?() end) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1, fn -> shall_we_profile?() end) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77]) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77]) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], :my_label) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77], :my_label) |> Enum.sum()
                  
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], fn -> shall_we_profile?() end) |> Enum.sum()  
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77], fn -> shall_we_profile?() end) |> Enum.sum()  
 ```
