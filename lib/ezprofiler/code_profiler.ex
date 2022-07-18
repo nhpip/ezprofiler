@@ -646,7 +646,7 @@ defmodule EZProfiler.CodeProfiler do
 
   defp do_stop_profiling(pid, %{clear_pid: pid} = state) do
     ProfilerOnTarget.stop_code_profiling()
-    {true, %{state | allow_profiling: false, clear_pid: nil, label: :any_label}}
+    {true, %{state | allow_profiling: true, clear_pid: nil, label: :any_label}}
   end
 
   defp do_stop_profiling(pid, state) do
