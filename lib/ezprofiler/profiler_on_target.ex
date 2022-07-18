@@ -434,7 +434,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     profiler: profiler,
                     results_data: result_str}
 
-    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
+    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: true
 
     if state.code_manager_async do
       respond_to_tester(state.test_pid, :cstop0)
@@ -475,7 +475,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     results_data: result_str}
     respond_to_tester(state.test_pid, :cstop4)
 
-    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
+    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: true
 
     if state.code_manager_async do
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
