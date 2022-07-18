@@ -90,6 +90,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def profiling_time(target_node, time) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:profiling_time, time})
+  end
+
+  @doc false
   def test_pid(target_node, pid) do
     :gen_statem.cast({:cstop_profiler, target_node}, {:test_pid, pid})
   end
@@ -366,6 +371,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def handle_event(:cast, {:profiling_time, time}, _any_state, state) do
+    {:keep_state, %{state | max_profiling_time: time}}
+  end
+
+  @doc false
   def handle_event(:cast, {:test_pid, pid}, _any_state, state) do
     {:keep_state, %{state | test_pid: pid}}
   end
@@ -450,11 +460,12 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{profiler_node: profiler_node} = state) do
+  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     display_message(profiler_node, :time_exceeded, [ptime])
     CodeProfiler.disallow_profiling()
     profiling_complete(:any, state)
     display_message(profiler_node, :new_line)
+    respond_to_manager({:ezprofiler, :timeout}, cpid)
     {:next_state, :waiting, %{state | current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 

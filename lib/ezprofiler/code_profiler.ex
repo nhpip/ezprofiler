@@ -24,6 +24,8 @@ defmodule EZProfiler.CodeProfiler do
   ## Pipe Profiling
   Profiles a function within an Elixir pipe using `EZProfiler.CodeProfiler.pipe_profiling`.
 
+  **NOTE:** The function we want to profile for function profiling and pipe function is specified as a function capture. It is recommended to include the module name (`&MyModule.foo/1` not `&foo/1`)
+  
   ## Labels
   When using either the CLI `c labels` or `EZProfiler.Manager.enable_profiling/1` either a single label or a list of labels can be specified. In the case
   of a list there are two modes of operation, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
@@ -200,7 +202,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/0)
+        EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/0)
       end
 
   """
@@ -222,7 +224,7 @@ defmodule EZProfiler.CodeProfiler do
        def foo() do
          x = function1()
          y = function2()
-         EZProfiler.CodeProfiler.function_profiling(&bar/1, [x])
+         EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x])
        end
 
 
@@ -233,7 +235,7 @@ defmodule EZProfiler.CodeProfiler do
        def foo() do
          x = function1()
          y = function2()
-         EZProfiler.CodeProfiler.function_profiling(&bar/0, :my_label)
+         EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/0, :my_label)
        end
 
 
@@ -244,7 +246,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/0, fn -> if should_i_profile?(y), do: :my_label, else: :nok end)
+        EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/0, fn -> if should_i_profile?(y), do: :my_label, else: :nok end)
       end
 
 
@@ -312,7 +314,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], "Profile 52")
+        EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x], "Profile 52")
       end
 
 
@@ -323,7 +325,7 @@ defmodule EZProfiler.CodeProfiler do
       def foo() do
         x = function1()
         y = function2()
-        EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(y), do: "Profile 52", else: :nok end)
+        EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x], fn -> if should_i_profile?(y), do: "Profile 52", else: :nok end)
       end
 
 
@@ -382,7 +384,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1)
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1)
          |> function2()
       end
 
@@ -410,7 +412,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x])
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, [x])
          |> function2()
       end
 
@@ -422,7 +424,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, :my_label)
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, :my_label)
          |> function2()
       end
 
@@ -434,7 +436,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
          |> function2()
       end
 
@@ -465,7 +467,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x], :my_label)
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, [x], :my_label)
          |> function2()
       end
 
@@ -477,7 +479,7 @@ defmodule EZProfiler.CodeProfiler do
          x = function1()
          data
          |> bar()
-         |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x], fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
+         |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, [x], fn -> if should_i_profile?(x), do: :my_label, else: :nok end)
          |> function2()
       end
 
