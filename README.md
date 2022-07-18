@@ -333,8 +333,8 @@ ezprofiler:
 
  --directory: where to store the results
  
- --maxtime: the maximum time we allow profiling for (default 60 seconds)
-
+ --maxtime: the maximum time we wait for profiling to start (default 300 seconds)
+ 
  --profiler: one of eprof, cprof or fprof, default eprof
 
  --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof
