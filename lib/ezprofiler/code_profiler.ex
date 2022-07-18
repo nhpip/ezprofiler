@@ -392,7 +392,6 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun) when is_function(fun) do
     {action, profiled_fun} = do_profiling_setup(fun, :no_label, [arg])
     rsp = profiled_fun.()
-    IO.inspect(action)
     stop_code_profiling(action, fun, :no_label, rsp)
   end
 
