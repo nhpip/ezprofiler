@@ -504,7 +504,6 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
     {action, profiled_fun} = do_profiling_setup(fun, options, [arg | args])
     rsp = profiled_fun.()
-    IO.inspect(action)
     stop_code_profiling(action, fun, options, rsp)
   end
 
@@ -541,7 +540,7 @@ defmodule EZProfiler.CodeProfiler do
     pid = self()
     ## Do this instead of Agent.get_and_update/2 to minimize non-profiling functions in the output
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
-    wait_for_stop_events()
+    wait_for_stop_events() |> IO.inspect()
     rsp
   end
 
