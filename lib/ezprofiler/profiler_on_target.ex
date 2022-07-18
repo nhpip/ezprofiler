@@ -442,6 +442,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     end
   end
 
+  @doc false
   def handle_event({:call, from}, :code_stop, _any_state, state) do
     {:keep_state, state, [{:reply, from, :ok}]}
   end
@@ -494,7 +495,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     display_message(profiler_node, :time_exceeded, [ptime])
-    CodeProfiler.disallow_profiling()
+ #   CodeProfiler.disallow_profiling()
     profiling_complete(:any, state)
 
     result_str = make_final_results(:code_stop, state)
