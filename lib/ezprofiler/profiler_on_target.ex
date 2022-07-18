@@ -928,6 +928,6 @@ defmodule EZProfiler.ProfilerOnTarget do
     CodeProfiler.allow_profiling_async(labels)
 
   defp allow_profiling_again(labels, _state), do:
-    CodeProfiler.allow_profiling(labels)
+    CodeProfiler.allow_profiling_async(labels)
 
 end
