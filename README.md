@@ -201,7 +201,7 @@ Code profiling enabled with label(s) of fred@shoes.com, sue@shoes.com, :mgmt_uti
 ```
 
 ```elixir
-EZProfiler.Manager.enable_code_profiling([fred@shoes.com, sue@shoes.com, :mgmt_utils])
+EZProfiler.Manager.enable_code_profiling([fred@shoes.com, sue@shoes.com, :mgmt_utils]) 
 ```
 When using a list of labels there are two modes, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
 
