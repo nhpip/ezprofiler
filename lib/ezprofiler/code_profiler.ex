@@ -81,7 +81,7 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def disallow_profiling() do
-    Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: []} end)
+    Agent.cast(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: []} end)
   end
 
   ##
