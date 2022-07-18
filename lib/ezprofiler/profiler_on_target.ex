@@ -419,9 +419,8 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{label_transition: label_transition?, current_labels: current_labels, profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
     respond_to_tester(state.test_pid, :dddddddddddd)
-Kernel.exit(:bad)
 
     profiling_complete(:code_stop, state)
     result_str = make_final_results(:code_stop, state)
@@ -435,7 +434,7 @@ Kernel.exit(:bad)
                     profiler: profiler,
                     results_data: result_str}
 
-    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
+    cp_started = true #if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
 
     if state.code_manager_async do
       respond_to_tester(state.test_pid, :cstop0)
