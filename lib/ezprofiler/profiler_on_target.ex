@@ -496,9 +496,17 @@ defmodule EZProfiler.ProfilerOnTarget do
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
 
+    results_map = %{type: :unknown,
+                    label: :unknown,
+                    filename: :unknown,
+                    profiler: :unknown,
+                    results_data: result_str}
+
+    latest_results = [results_map | state.latest_results]
+
     display_message(profiler_node, :new_line)
-    respond_to_manager({:ezprofiler, :profiling_timeout, result_str}, cpid)
-    {:next_state, :waiting, %{state | current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    respond_to_manager({:ezprofiler, :profiling_timeout}, cpid)
+    {:next_state, :waiting, %{state | latest_results: latest_results, current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
