@@ -431,6 +431,8 @@ defmodule EZProfiler.ProfilerOnTarget do
                     results_data: result_str}
 
     if state.code_manager_async do
+      respond_to_tester(state.test_pid, :cstop0)
+
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, cp_started: false,
                                                        current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
@@ -465,6 +467,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     filename: :no_file,
                     profiler: :no_profiler,
                     results_data: result_str}
+    respond_to_tester(state.test_pid, :cstop4)
 
     if state.code_manager_async do
       respond_to_manager({:ezprofiler_results, results_map}, cpid)
