@@ -64,7 +64,6 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def allow_profiling(labels) do
-    IO.inspect(:update1)
     Agent.update(__MODULE__, fn state -> %{state | allow_profiling: true, labels: labels} end)
   end
 
@@ -73,7 +72,6 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def allow_profiling_async(labels) do
-    IO.inspect(:update2)
     Agent.cast(__MODULE__, fn state -> %{state | allow_profiling: true, labels: labels} end)
   end
 
@@ -83,7 +81,6 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def disallow_profiling() do
-    IO.inspect(:update3)
     Agent.update(__MODULE__, fn state -> %{state | allow_profiling: false, clear_pid: nil, labels: []} end)
   end
 
@@ -92,7 +89,6 @@ defmodule EZProfiler.CodeProfiler do
   ##
   @doc false
   def allow_label_transition(transition?) do
-    IO.inspect(:update4)
     Agent.update(__MODULE__, fn state -> %{state | label_transition?: transition?} end)
   end
 
@@ -396,6 +392,7 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun) when is_function(fun) do
     {action, profiled_fun} = do_profiling_setup(fun, :no_label, [arg])
     rsp = profiled_fun.()
+    IO.inspect(action)
     stop_code_profiling(action, fun, :no_label, rsp)
   end
 
@@ -508,6 +505,7 @@ defmodule EZProfiler.CodeProfiler do
   def pipe_profiling(arg, fun, args, options) when is_atom(options) or is_binary(options) do
     {action, profiled_fun} = do_profiling_setup(fun, options, [arg | args])
     rsp = profiled_fun.()
+    IO.inspect(action)
     stop_code_profiling(action, fun, options, rsp)
   end
 
