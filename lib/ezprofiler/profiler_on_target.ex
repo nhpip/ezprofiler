@@ -453,7 +453,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{display_labels: current_labels, code_manager_pid: cpid} =state) do
+  def handle_event({:call, from}, :code_stoop, :profiling, %{display_labels: current_labels, code_manager_pid: cpid} =state) do
     respond_to_tester(state.test_pid, {:cstop22,state.cp_started, current_labels})
 
     {:keep_state, state, [{:reply, from, :ok}]}
