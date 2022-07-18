@@ -356,7 +356,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     if keep_settings && async?,
       do: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, latest_results: [], profiling_type_state: :code, profiling_start_wait_ref: ref}},
       else: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, profiling_start_wait_ref: ref,
-                                    code_manager_async: false, code_manager_pid: pid, profiling_type_state: :code}}
+                                    code_manager_pid: pid, profiling_type_state: :code}}
 
   end
 
@@ -437,6 +437,8 @@ defmodule EZProfiler.ProfilerOnTarget do
     else
       latest_results = [results_map | state.latest_results]
       respond_to_manager({:results_available, results_map}, cpid)
+      respond_to_tester(state.test_pid, :cstop1)
+
       {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
                                                        cp_started: false, current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
     end
@@ -444,6 +446,8 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event({:call, from}, :code_stop, _any_state, %{code_manager_pid: cpid} =state) do
+    respond_to_tester(state.test_pid, :cstop2)
+
     {:keep_state, state, [{:reply, from, :ok}]}
   end
 
