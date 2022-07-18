@@ -540,7 +540,7 @@ defmodule EZProfiler.CodeProfiler do
     pid = self()
     ## Do this instead of Agent.get_and_update/2 to minimize non-profiling functions in the output
     send(__MODULE__, {:"$gen_call", {pid, :no_ref}, {:get_and_update, fn state -> do_stop_profiling(pid, state) end}})
-    wait_for_stop_events() |> IO.inspect()
+    wait_for_stop_events()
     rsp
   end
 
@@ -580,7 +580,6 @@ defmodule EZProfiler.CodeProfiler do
         {:no_ref, _} -> :ok
         :code_profiling_stopped -> :code_profiling_stopped
         :code_profiling_never_started -> :code_profiling_never_started
-        m -> m
       after
         1000 -> :error
       end
