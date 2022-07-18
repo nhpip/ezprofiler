@@ -493,7 +493,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{code_tracing_pid: pid, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     display_message(profiler_node, :time_exceeded, [ptime])
     CodeProfiler.allow_profiling_async([])
     profiling_complete(:any, state)
@@ -511,6 +511,8 @@ defmodule EZProfiler.ProfilerOnTarget do
 
     display_message(profiler_node, :new_line)
     respond_to_manager({:ezprofiler, :profiling_timeout}, cpid)
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+
     {:next_state, :waiting, %{state | latest_results: latest_results, current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
