@@ -417,7 +417,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{cp_started: true, profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{cp_started: :ltrue, profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
     profiling_complete(:code_stop, state)
     result_str = make_final_results(:code_stop, state)
                  |> finalize_results_file(state)
