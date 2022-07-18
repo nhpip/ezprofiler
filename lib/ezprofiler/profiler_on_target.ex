@@ -419,7 +419,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
+  def handle_event({:call, from}, :code_stop, :profiling, %{cp_started: true, current_labels: current_labels, label_transition?: label_transition?, profiler_node: profiler_node, current_results_filename: filename, code_manager_pid: cpid, profiler: profiler} = state) do
     respond_to_tester(state.test_pid, :dddddddddddd)
 
     profiling_complete(:code_stop, state)
@@ -434,7 +434,7 @@ defmodule EZProfiler.ProfilerOnTarget do
                     profiler: profiler,
                     results_data: result_str}
 
-    cp_started = true #if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
+    cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
 
     if state.code_manager_async do
       respond_to_tester(state.test_pid, :cstop0)
@@ -453,14 +453,14 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{display_labels: current_labels, code_manager_pid: cpid} =state) do
+  def handle_event({:call, from}, :code_stop, _any_state, %{display_labels: current_labels, code_manager_pid: cpid} =state) do
     respond_to_tester(state.test_pid, {:cstop22,state.cp_started, current_labels})
 
     {:keep_state, state, [{:reply, from, :ok}]}
   end
 
   @doc false
-  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{cp_started: _any, label_transition: label_transition?, current_labels: current_labels, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{cp_started: true, current_labels: current_labels, label_transition?: label_transition?, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
     result_str = make_final_results(:pseudo_code_stop, state)
                  |> finalize_results_file(state)
