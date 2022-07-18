@@ -442,6 +442,10 @@ defmodule EZProfiler.ProfilerOnTarget do
     end
   end
 
+  def handle_event({:call, from}, :code_stop, _any_state, state) do
+    {:keep_state, state, [{:reply, from, :ok}]}
+  end
+
   @doc false
   def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{cp_started: true, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
