@@ -334,7 +334,7 @@ ezprofiler:
 
  --directory: where to store the results
  
- --maxtime: the maximum time we wait for profiling to start (default 300 seconds)
+ --maxtime: the maximum time we wait for profiling to complete in milliseconds (default 5000 milliseconds)
  
  --profiler: one of eprof, cprof or fprof, default eprof
 
