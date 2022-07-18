@@ -356,7 +356,7 @@ defmodule EZProfiler.ProfilerOnTarget do
     if keep_settings && async?,
       do: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, latest_results: [], profiling_type_state: :code, profiling_start_wait_ref: ref}},
       else: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, profiling_start_wait_ref: ref,
-                                    code_manager_pid: pid, profiling_type_state: :code}}
+                                    code_manager_async: false, code_manager_pid: pid, profiling_type_state: :code}}
 
   end
 
