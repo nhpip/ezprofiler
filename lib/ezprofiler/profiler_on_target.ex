@@ -413,7 +413,6 @@ defmodule EZProfiler.ProfilerOnTarget do
   @doc false
   def handle_event(:cast, {:pseudo_code_start, label, display_label}, :profiling, %{profiler: profiler, current_labels: current_labels, display_labels: dlabels, profiling_start_wait_ref: sref} = state) do
       if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
-      cp_started = if label_transition? && Enum.count(current_labels) > 0, do: true, else: false
       {:keep_state, %{state | profiling_start_wait_ref: nil, current_labels: List.delete(current_labels, label), display_labels: List.delete(dlabels, display_label), cp_started: true}}
   end
 
