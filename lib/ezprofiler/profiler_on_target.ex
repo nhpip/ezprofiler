@@ -492,8 +492,12 @@ defmodule EZProfiler.ProfilerOnTarget do
     display_message(profiler_node, :time_exceeded, [ptime])
     CodeProfiler.disallow_profiling()
     profiling_complete(:any, state)
+
+    result_str = make_final_results(:code_stop, state)
+                 |> finalize_results_file(state)
+
     display_message(profiler_node, :new_line)
-    respond_to_manager({:ezprofiler, :profiling_timeout}, cpid)
+    respond_to_manager({:ezprofiler, :profiling_timeout, result_str}, cpid)
     {:next_state, :waiting, %{state | current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
