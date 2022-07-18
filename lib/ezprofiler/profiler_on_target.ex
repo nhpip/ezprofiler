@@ -401,6 +401,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   def handle_event(:cast, {:code_start, pid, fun, label, display_label}, :waiting, %{profiler: profiler, profiler_node: profiler_node, profiling_start_wait_ref: sref,
                                                                                      current_labels: current_labels, display_labels: dlabels, cp_started: cp_started} = state) do
     if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
+    respond_to_tester(state.test_pid, :cstart)
 
     display_message(profiler_node, :code_start, [display_label])
     case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, code_tracing_pid: pid}) do
