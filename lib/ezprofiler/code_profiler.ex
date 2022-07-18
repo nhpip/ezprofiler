@@ -580,6 +580,7 @@ defmodule EZProfiler.CodeProfiler do
         {:no_ref, _} -> :ok
         :code_profiling_stopped -> :code_profiling_stopped
         :code_profiling_never_started -> :code_profiling_never_started
+        m -> m
       after
         1000 -> :error
       end
