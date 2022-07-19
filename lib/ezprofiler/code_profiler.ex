@@ -38,8 +38,8 @@ defmodule EZProfiler.CodeProfiler do
   A label that matches and is profiled, will removed from the list of labels to be profiled next and profiling is re-enabled for the remaining labels.
   This allows profiling to follow the flow of code through your application, even if processes are switched.
 
-  It is important to note that the rule of only one process at a time can be profiled still exists, so ideally they should be sequential. However, if there are sections of want to
-  be profiled code that overlap in time `ezprofiler` performs `pseudo profiling` where `ezprofiler` will at least calculate and display how long the profiled code took to execute.
+  It is important to note that the rule of only one process at a time can be profiled still exists, so ideally profiled code calls should be sequential. However, if there are sections of code that need to
+  be profiled that overlap in time `ezprofiler` performs `pseudo profiling`. This is where `ezprofiler` will calculate and display how long the profiled code took to execute.
 
   """
 
