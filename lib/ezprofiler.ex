@@ -15,7 +15,7 @@ defmodule EZProfiler do
   ##  the target VM, a proxy process on the escript node and waits for user input
   ##
 
-  @max_profile_time 60 # 60 seconds
+  @max_profile_time 5000 # 5 seconds
   @waiting_prompt "waiting.."
   @profiling_prompt "profiling"
 
@@ -40,6 +40,7 @@ defmodule EZProfiler do
              sort: :string,
              cpfo: :boolean,
              inline: :string,
+             labeltran: :boolean,
              help: :boolean
            ]
          )
@@ -127,8 +128,9 @@ defmodule EZProfiler do
           process_configuration: process_cfg,
           set_on_spawn: Keyword.get(opts, :sos, false),
           directory: Keyword.get(opts, :directory, false),
-          max_time: Keyword.get(opts, :maxtime, @max_profile_time) * 1000,
-          code_profiler_fun_only: Keyword.get(opts, :cpfo, false)
+          max_time: Keyword.get(opts, :maxtime, @max_profile_time),
+          code_profiler_fun_only: Keyword.get(opts, :cpfo, false),
+          label_transition?: Keyword.get(opts, :labeltran, false)
       }
 
       ## Load the module CodeMonitor on the target and spawn a process on the target that executes that code
@@ -155,6 +157,7 @@ defmodule EZProfiler do
                 current_state: :waiting,
                 profiler_pid: profiler_pid,
                 monitor_pid: monitor_pid,
+                current_labels: [],
                 results_file: nil}
 
       ## Since this "main" process is blocked waiting on user input spawn a process that proxies inbound messages from the target
@@ -172,7 +175,9 @@ defmodule EZProfiler do
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' \"label\"to enable code profiling (once) for label (an atom), e.g. \"c mylabel\"
+     'c' \"label\" to enable code profiling (once) for label (an atom, string or list of either), e.g. \"c mylabel\" || \"c label1, label2\"
+         Select \"c r\" to use the last label(s)
+     'l' \"true | false\" permits transition between labels if multiple labels are specified
      'u' \"M:F\" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
@@ -214,7 +219,7 @@ defmodule EZProfiler do
         ## Send a unique string to the group leader and it's port.
         ## The main process's IO.gets will then wake up amd receive that string
         ## so it can check its mailbox
-        send(Process.group_leader(), {port, {:data, "profiler_message\n"}})
+        send(Process.group_leader(), {port, {:data, "123profiler_message\n"}})
         do_wait_for_profiler_events(port, pid)
     end
   end
@@ -222,7 +227,7 @@ defmodule EZProfiler do
   ##
   ## The "main process" waits for user input
   ##
-  defp wait_for_user_events(%{target_node: target_node, command_count: count, original_mod_fun: orig_mod_fun} = state) do
+  defp wait_for_user_events(%{target_node: target_node, command_count: count, original_mod_fun: orig_mod_fun, current_labels: current_labels} = state) do
     prompt = make_prompt(state)
     case IO.gets(prompt) |> String.trim() do
       "s" ->
@@ -259,15 +264,27 @@ defmodule EZProfiler do
         System.halt()
 
       "c" ->
-       ProfilerOnTarget.allow_code_profiling(target_node, :any_label)
-       wait_for_user_events(%{state | command_count: count+1})
+       ProfilerOnTarget.allow_code_profiling(target_node, [])
+       wait_for_user_events(%{state | command_count: count+1, current_labels: []})
 
-      <<"c", label::binary>> ->
-        with {:ok, label} <- get_label(label)
+      <<"c", labels::binary>> ->
+        with {:ok, labels} <- get_label(labels, current_labels)
         do
-          ProfilerOnTarget.allow_code_profiling(target_node, label)
+          ProfilerOnTarget.allow_code_profiling(target_node, labels)
+          wait_for_user_events(%{state | command_count: count+1, current_labels: labels})
         else
-          _ -> IO.puts("Bad label")
+          _ ->
+            display_message(:bad_label)
+            wait_for_user_events(%{state | command_count: count+1})
+        end
+
+      <<"l", bool::binary>> ->
+        with {:ok, transition?} <- label_transition(bool)
+        do
+          display_message({:label_transistion, transition?})
+          ProfilerOnTarget.allow_label_transition(target_node, transition?)
+        else
+          _ -> display_message({:label_transistion, :error})
         end
         wait_for_user_events(%{state | command_count: count+1})
 
@@ -325,6 +342,10 @@ defmodule EZProfiler do
           {:new_filename, filename} ->
             wait_for_user_events(%{state | results_file: filename})
 
+          :view_results_file ->
+            view_results_file(state)
+            wait_for_user_events(state)
+
           {:display_message, message_details} ->
             display_message(message_details)
             wait_for_user_events(state)
@@ -351,17 +372,42 @@ defmodule EZProfiler do
     end
   end
 
-  defp get_label(label) do
-    label = String.trim(label) |> String.replace("\"", "")
-    if String.at(label, 0) == ":",
-      do: do_get_label(label),
-      else: do_get_label("\"#{label}\"")
+  defp label_transition(allow?) do
+    try do
+      {allow?, _} = String.trim(allow?) |> Code.eval_string()
+      if is_boolean(allow?),
+        do: {:ok, allow?},
+        else: :error
+    rescue
+      _ -> :error
+    end
+  end
+
+  defp get_label(labels, current_labels) do
+    new_labels =
+      String.trim(labels)
+      |> String.replace("[", "")
+      |> String.replace("]", "")
+      |> String.split(",")
+      |> Enum.map(fn label ->
+            label = String.trim(label) |> String.replace("\"", "")
+            if String.at(label, 0) == ":",
+              do: do_get_label(label),
+              else: do_get_label("\"#{label}\"")
+      end)
+      if Enum.member?(new_labels, :error) do
+        :error
+      else
+        if new_labels == ["r"],
+          do: {:ok, current_labels},
+          else: {:ok, new_labels}
+      end
   end
 
   defp do_get_label(label) do
     try do
       {new_label, _} = Code.eval_string(label)
-      {:ok, new_label}
+      new_label
     rescue
       _ -> :error
     end
@@ -374,7 +420,7 @@ defmodule EZProfiler do
   ##
   ## Get a message forwarded from the proxy
   ##
-  defp handle_erlang_elixir_message("profiler_message") do
+  defp handle_erlang_elixir_message("123profiler_message") do
     receive do
       msg -> msg
     after
@@ -434,7 +480,16 @@ defmodule EZProfiler do
       :invalid_profiler ->
         IO.puts("\nInvalid profiler\n")
 
-     {:message, message}  ->
+      :bad_label ->
+        IO.puts("\nBad label\n")
+
+      {:label_transistion, :error} ->
+        IO.puts("\nMust be either true or false\n")
+
+      {:label_transistion, what} ->
+        IO.puts("\nLabel transition set to #{what}\n")
+
+      {:message, message}  ->
         IO.puts("\n#{inspect(message)}\n")
 
       {:stopped_profiling, [filename]} ->
@@ -458,6 +513,9 @@ defmodule EZProfiler do
       {:time_exceeded, [time]} ->
         IO.puts("\nProfiling time of #{inspect round(time/1000)} seconds has exceeded, will disable profiling\n")
 
+      {:start_time_exceeded, [time]} ->
+        IO.puts("\nStart profiling time of #{inspect round(time/1000)} seconds has exceeded, will disable profiling\n")
+
       :updated_mf ->
         IO.puts("\nUpdated the module and function")
 
@@ -473,8 +531,9 @@ defmodule EZProfiler do
       {:no_code_prof, _} ->
         IO.puts("\nCode profiling can onle be enabled in waiting state\n")
 
-      {:code_prof_label, [label]} ->
-        IO.puts("\nCode profiling enabled with a label of #{inspect label}\n")
+      {:code_prof_label, [labels]} ->
+        labels = Enum.reduce(labels, "",  fn(l, a) -> "#{a}, #{inspect(l)}" end) |> String.replace("\"", "") |> String.trim_leading(", ")
+        IO.puts("\nCode profiling enabled with label(s) of #{labels}\n")
 
       :no_file ->
         IO.puts("\nNo file found\n")
@@ -506,6 +565,9 @@ defmodule EZProfiler do
       :profiler_problem ->
         IO.puts("\nPossible problem with eprof or fprof, restart maybe necessary")
 
+      {:pseudo_code_profiling, [result]} ->
+        IO.puts("\n#{result}")
+
       _ ->
         :ok
     end
@@ -530,10 +592,11 @@ defmodule EZProfiler do
     )
 
     IO.puts(" --directory: where to store the results\n")
-    IO.puts(" --maxtime: the maximum time we allow profiling for (default 60 seconds)\n")
+    IO.puts(" --maxtime: the maximum time we wait for profiling to complete in milliseconds (default 5000 milliseconds)\n")
     IO.puts(" --profiler: one of eprof, cprof or fprof, default eprof\n")
     IO.puts(" --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof\n")
     IO.puts(" --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls\n")
+    IO.puts(" --labeltran: permits transition between labels if multiple labels are specified\n")
     IO.puts(" --help: this page\n")
 
     System.halt()

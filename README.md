@@ -49,13 +49,15 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom or string), e.g. "c special_atom"
+     'c' "label" to enable code profiling (once) for label (an atom, string or list of either), e.g. "c mylabel" || "c label1, label2"
+         Select "c r" to use the last label(s)
+     'l' "true | false" permits transition between labels if multiple labels are specified
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
      'h' this help text
      'q' to exit
-
+     
 waiting..(1)>
 ```
 Profiling has currently not started. The user selects `'s'` to commence profiling:
@@ -172,8 +174,45 @@ def foo(data) do
    x = function1()
    data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
 end
-
 ```
+### A word about Labels
+Labels are used to identify what code you want to profile, where each piece of code has its own label. For example
+a web-server may have something like:
+```
+EZProfiler.CodeProfiler.function_profiling(&ParseModule.parse_http/1, [http_string], "fred@shoes.com")
+```
+From within the CLI the user can then select:
+```
+waiting..(1)> c fred@shoes.com
+waiting..(2)>
+Code profiling enabled with label(s) of fred@shoes.com
+```
+Or from code:
+```elixir
+EZProfiler.Manager.enable_code_profiling("fred@shoes.com")
+```
+In both those cases only a web request from `fred@shoes.com` will be selected for profling (using an anonymous function to select the label can make the code dynamic).
+
+Labels can be `atoms`, `strings` or when selecting code to profile a `list of labels`
+```
+waiting..(3)> c fred@shoes.com, sue@shoes.com, :mgmt_utils
+waiting..(4)>
+Code profiling enabled with label(s) of fred@shoes.com, sue@shoes.com, :mgmt_utils
+```
+
+```elixir
+EZProfiler.Manager.enable_code_profiling([fred@shoes.com, sue@shoes.com, :mgmt_utils]) 
+```
+When using a list of labels there are two modes, label transition (`labeltran`) `true` or label transition `false` (the default). The behavior is as follows:
+
+#### Label Transition `false`
+This effectively a request to profile *one-of* those labels. The first matching label is selected for profiling and the rest of the labels are ignored.
+
+#### Label Transition `true`
+In this case all specified labels shall be profiled sequentially (order doesn't matter), effectively the profiler automatically re-enables profiling after a label match. A label that matches and is profiled, will removed from the list of labels to be profiled next and profiling is re-enabled for the remaining labels. This allows profiling to follow the flow of code through your application, even if processes are switched. 
+
+It is important to note that the rule of only one process at a time can be profiled still exists, so ideally profiled code calls should be sequential. However, if there are sections of code that need to be profiled that overlap in time `ezprofiler` performs `pseudo profiling`. This is where `ezprofiler` will calculate and display how long the profiled code took to execute.
+
 ### Code profiling via the ezprofiler shell
 Invoke `ezprofiler` as below (no need for a process) hitting `c` will start profiling in this case. To abandon hit `r`.
 
@@ -187,13 +226,15 @@ Options:
      'a' to get profiling results when 'profiling'
      'r' to abandon (reset) profiling and go back to 'waiting' state with initial value for 'u' set
      'c' to enable code profiling (once)
-     'c' "label"to enable code profiling (once) for label (an atom or string), e.g. "c mylabel"
+     'c' "label" to enable code profiling (once) for label (an atom, string or list of either), e.g. "c mylabel" || "c label1, label2"
+         Select "c r" to use the last label(s)
+     'l' "true | false" permits transition between labels if multiple labels are specified
      'u' "M:F" to update the module and function to trace (only with eprof)
      'v' to view last saved results file
      'g' for debugging, returns the state on the target VM
      'h' this help text
      'q' to exit
-
+     
 waiting..(1)> c
 waiting..(2)>
 Code profiling enabled
@@ -252,8 +293,10 @@ stop_ezprofler/0    # Stops the profiler
 enable_profiling/0  # Start profiling, same as `c` from the CLI
 enable_profiling/1  # Start profiling with a label, same as `c label` from the CLI
 
-wait_for_results/0  # Blocks, and waits for results (up to 60 seconds)
-wait_for_results/1  # Blocks, and waits for results for the time, in seconds
+wait_for_results/0  # Blocks, and waits for results (up to 5000 milliseconds)
+wait_for_results/1  # Blocks, and waits for results for the time, in milliseconds
+
+allow_label_transition/1 # Enables or disables label transition
 
 wait_for_results_non_block/2  # As `wait_for_results` but is non-blocking. Instead a message is sent to `self()` or the specified pid
 
@@ -291,14 +334,16 @@ ezprofiler:
 
  --directory: where to store the results
  
- --maxtime: the maximum time we allow profiling for (default 60 seconds)
-
+ --maxtime: the maximum time we wait for profiling to complete in milliseconds (default 5000 milliseconds)
+ 
  --profiler: one of eprof, cprof or fprof, default eprof
 
  --sort: for eprof one of time, calls, mfa (default time), for fprof one of acc or own (default acc). Nothing for cprof
  
  --cpfo: when doing code profiling setting this will only profile the function and not any functions that the function calls
  
+ --labeltran: permits transition between labels if multiple labels are specified
+  
  --help: this page
 ```
 
@@ -323,29 +368,29 @@ ezprofiler:
 ```
 ### Function Profiling
 ```elixir
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, :my_label)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0, :my_label)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun1/0, fn -> shall_we_profile?() end)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun1/0, fn -> shall_we_profile?() end)
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10])
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10])
 
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], :my_label)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10], :my_label)
      
-     EZProfiler.CodeProfiler.function_profiling(&profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
+     EZProfiler.CodeProfiler.function_profiling(&MyModule.profile_fun2/1, [1..10], fn -> shall_we_profile?() end)
 ```
 ### Pipe Profiling
 ```elixir
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1) |> Enum.sum()
 
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, :my_label) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1, :my_label) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun2/1, fn -> shall_we_profile?() end) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun2/1, fn -> shall_we_profile?() end) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77]) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77]) |> Enum.sum()
      
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], :my_label) |> Enum.sum()
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77], :my_label) |> Enum.sum()
                  
-     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&profile_fun3/2, [77], fn -> shall_we_profile?() end) |> Enum.sum()  
+     [1,2,3,4] |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.profile_fun3/2, [77], fn -> shall_we_profile?() end) |> Enum.sum()  
 ```

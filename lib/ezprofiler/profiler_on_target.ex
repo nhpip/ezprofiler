@@ -13,8 +13,10 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @temp_results_file "/tmp/tmp_profile_results"
 
+  @saved_temp_results_file "/tmp/tmp_profile_results.save"
+
   alias EZProfiler.CodeProfiler
-  
+
   @doc false
   def callback_mode, do: :handle_event_function
 
@@ -34,7 +36,7 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def stop_profiling(target_node) do
-    :gen_statem.cast({:cstop_profiler, target_node}, :stop)
+    :gen_statem.call({:cstop_profiler, target_node}, :stop)
   end
 
   @doc false
@@ -48,13 +50,28 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def allow_code_profiling(target_node, labels) when is_list(labels) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, labels, nil, false})
+  end
+
+  @doc false
   def allow_code_profiling(target_node, label) do
-    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, label, nil})
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, [label], nil, false})
+  end
+
+  @doc false
+  def allow_code_profiling(target_node, labels, pid) when is_list(labels)  do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, labels, pid, false})
   end
 
   @doc false
   def allow_code_profiling(target_node, label, pid) do
-    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, label, pid})
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, [label], pid, false})
+  end
+
+  @doc false
+  def auto_allow_code_profiling(target_node, labels) when is_list(labels) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_code_profiling, labels, nil, true})
   end
 
   @doc false
@@ -63,8 +80,63 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def set_mgmt_mode_non_blocking(target_node, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:set_mgmt_mode_non_blocking, pid})
+  end
+
+  @doc false
+  def set_mgmt_mode_blocking(target_node) do
+    :gen_statem.cast({:cstop_profiler, target_node}, :set_mgmt_mode_blocking)
+  end
+
+  @doc false
+  def set_extra_code_pids(target_node, pids) when is_list(pids) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:set_extra_code_pids, pids})
+  end
+
+  @doc false
+  def set_extra_code_pids(target_node, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:set_extra_code_pids, [pid]})
+  end
+
+  @doc false
+  def profiling_time(target_node, time) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:profiling_time, time})
+  end
+
+  @doc false
+  def profiling_start_wait(target_node, time) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:profiling_start_wait, time})
+  end
+
+  @doc false
+  def test_pid(target_node, pid) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:test_pid, pid})
+  end
+
+  @doc false
+  def allow_label_transition(target_node, allow?) do
+    :gen_statem.cast({:cstop_profiler, target_node}, {:allow_label_transition, allow?})
+  end
+
+  @doc false
   def start_code_profiling(pid, fun, label) do
-    :gen_statem.cast(:cstop_profiler, {:code_start, pid, fun, label})
+    :gen_statem.cast(:cstop_profiler, {:code_start, pid, fun, label, label})
+  end
+
+  @doc false
+  def start_code_profiling(pid, fun, label, display_label) do
+    :gen_statem.cast(:cstop_profiler, {:code_start, pid, fun, label, display_label})
+  end
+
+  @doc false
+  def pseudo_start_code_profiling(label) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_start, label, label})
+  end
+
+  @doc false
+  def pseudo_start_code_profiling(label, display_label) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_start, label, display_label})
   end
 
   @doc false
@@ -73,8 +145,18 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def pseudo_stop_code_profiling(label, fun, time) do
+    :gen_statem.cast(:cstop_profiler, {:pseudo_code_stop, label, fun, time})
+  end
+
+  @doc false
   def get_state(target_node) do
     :gen_statem.call({:cstop_profiler, target_node}, :get_state)
+  end
+
+  @doc false
+  def get_latest_results(target_node) do
+    :gen_statem.call({:cstop_profiler, target_node}, :get_latest_results)
   end
 
   @doc false
@@ -105,7 +187,10 @@ defmodule EZProfiler.ProfilerOnTarget do
       set_on_spawn: opts.set_on_spawn,
       results_directory: opts.directory,
       current_results_filename: "",
-      current_label:  :any_label,
+      current_labels: [],
+      display_labels: [],
+      current_label: :any_label,
+      display_label: :any_label,
       results_file_index: 0,
       max_profiling_time: opts.max_time,
       current_state: :waiting,          # One of :waiting or :profiling
@@ -118,7 +203,15 @@ defmodule EZProfiler.ProfilerOnTarget do
       timer_ref: nil,
       beam_profiler_pid: nil,
       code_manager_pid: nil,
-      code_manager_async: false
+      code_manager_non_blocking: false,
+      test_pid: nil,
+      extra_code_pids: [],
+      label_transition?: opts.label_transition?,
+      latest_results: [],
+      profiling_start_wait: :infinity,
+      profiling_start_wait_ref: nil,
+      cp_started: 0,
+      temp_pseudo_data: nil
     }
 
     ## Starts the state machine process on the target VM
@@ -167,6 +260,11 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
+  def handle_event({:call, from}, :get_latest_results, _any_state, state) do
+    {:keep_state, %{state | latest_results: []}, [{:reply, from, {:profiling_results, Enum.reverse(state.latest_results)}}]}
+  end
+
+  @doc false
   def handle_event({:call, from}, :ping, _any_state, state) do
     {:keep_state, state, [{:reply, from, :ok}]}
   end
@@ -199,10 +297,10 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   @doc false
   def handle_event(:cast, :analyze, :profiling, %{profiler_node: profiler_node, profiler: profiler, profiling_type_state: :normal, timer_ref: ref} = state) do
-    if profiler != :cprof, do: Process.cancel_timer(ref)
-    profiling_complete(state)
+    if profiler != :cprof && is_reference(ref), do: Process.cancel_timer(ref)
+    profiling_complete(:any, state)
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state | timer_ref: nil,profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state | timer_ref: nil, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
@@ -229,96 +327,225 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event({:call, from}, :reset, :profiling, %{profiler_node: profiler_node, profiler: profiler, monitors: monitors} = state) do
+  def handle_event({:call, from}, :reset, :profiling, %{profiler_node: profiler_node, profiler: profiler, monitors: monitors, timer_ref: tref, profiling_start_wait_ref: sref} = state) do
+    if profiler != :cprof && is_reference(tref), do: Process.cancel_timer(tref)
+    if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
     Enum.each(monitors, &Process.demonitor(&1))
     do_profiling_stop(profiler)
     do_state_change(profiler_node, :waiting)
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: []}, [{:reply, from, :ok}]}
+    {:next_state, :waiting, %{state | pending_code_profiling: false, timer_ref: nil, profiling_start_wait_ref: nil, cp_started: 0, profiling_type_state: :normal, monitors: [], latest_results: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
   def handle_event({:call, from}, :reset, _other_state, %{profiler_node: profiler_node} = state) do
     CodeProfiler.disallow_profiling()
     display_message(profiler_node, :reset_state)
-    {:keep_state, %{state | pending_code_profiling: false, code_profile_fun: nil}, [{:reply, from, :ok}]}
+    {:keep_state, %{state | pending_code_profiling: false, code_profile_fun: nil, latest_results: []}, [{:reply, from, :ok}]}
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, :any_label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
-    CodeProfiler.allow_profiling(:any_label)
+  def handle_event(:cast, {:allow_code_profiling, [], pid, keep_settings}, :waiting, %{profiling_start_wait: start_time, profiler: profiler, code_manager_non_blocking: non_blocking?, profiler_node: profiler_node} = state) do
+    ref = if profiler != :cprof && is_integer(start_time), do: Process.send_after(self(), :start_profiling_timeout, start_time)
+    allow_profiling_again([], state)
     display_message(profiler_node, :code_prof)
-    {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid}}
+    if keep_settings && non_blocking?,
+       do: {:keep_state, %{state | latest_results: [], profiling_type_state: :code, profiling_start_wait_ref: ref}},
+       else: {:keep_state, %{state | pending_code_profiling: true, code_manager_pid: pid, profiling_type_state: :code, profiling_start_wait_ref: ref}}
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, label, pid}, :waiting, %{profiler_node: profiler_node} = state) do
-    CodeProfiler.allow_profiling(label)
-    display_message(profiler_node, :code_prof_label, [label])
-    {:keep_state, %{state | current_label: label, pending_code_profiling: true, code_manager_async: false, code_manager_pid: pid}}
+  def handle_event(:cast, {:allow_code_profiling, in_labels, pid, keep_settings}, :waiting, %{profiling_start_wait: start_time, profiler: profiler, code_manager_non_blocking: non_blocking?, profiler_node: profiler_node} = state) do
+    ref = if profiler != :cprof && is_integer(start_time), do: Process.send_after(self(), :start_profiling_timeout, start_time)
+    labels = lower_labels(in_labels)
+    allow_profiling_again(labels, state)
+    display_message(profiler_node, :code_prof_label, [in_labels])
+    if not keep_settings,
+       do: File.rm(@saved_temp_results_file)
+    if keep_settings && non_blocking?,
+      do: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, latest_results: [], profiling_type_state: :code, profiling_start_wait_ref: ref}},
+      else: {:keep_state, %{state | current_labels: labels, display_labels: in_labels, pending_code_profiling: true, profiling_start_wait_ref: ref,
+                                    code_manager_pid: pid, profiling_type_state: :code}}
+
   end
 
   @doc false
-  def handle_event(:cast, {:allow_code_profiling, _label, _pid}, _other_state, %{profiler_node: profiler_node} = state) do
+  def handle_event(:cast, {:allow_code_profiling, _label, _pid, _keep_settings}, _other_state, %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :no_code_prof)
     {:keep_state, state}
   end
 
   @doc false
   def handle_event(:cast, {:change_code_manager_pid, pid}, _any_state, state) do
-    {:keep_state, %{state | code_manager_pid: pid, code_manager_async: true}}
+    {:keep_state, %{state | code_manager_pid: pid, code_manager_non_blocking: true}}
   end
 
   @doc false
-  def handle_event(:cast, {:code_start, pid, fun, label}, :waiting, %{profiler_node: profiler_node} = state) do
-    display_message(profiler_node, :code_start, [label])
-    case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, current_label: label, code_tracing_pid: pid}) do
-      {:continue, new_state} -> {:next_state, :profiling, %{new_state | code_profile_fun: nil}}
-      {_, new_state} -> {:stop, :normal, %{new_state | code_profile_fun: nil}}
+  def handle_event(:cast, :set_mgmt_mode_blocking, _any_state, state) do
+    {:keep_state, %{state | code_manager_non_blocking: false}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:set_mgmt_mode_non_blocking, pid}, _any_state, state) do
+    {:keep_state, %{state | code_manager_pid: pid, code_manager_non_blocking: true}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:set_extra_code_pids, pids}, _any_state, state) do
+    {:keep_state, %{state | extra_code_pids: pids}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:allow_label_transition, transition?}, _any_state, state) do
+    CodeProfiler.allow_label_transition(transition?)
+    {:keep_state, %{state | label_transition?: transition?}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:profiling_time, time}, _any_state, state) do
+    {:keep_state, %{state | max_profiling_time: time}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:profiling_start_wait, time}, _any_state, state) do
+    {:keep_state, %{state | profiling_start_wait: time}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:test_pid, pid}, _any_state, state) do
+    {:keep_state, %{state | test_pid: pid}}
+  end
+
+  @doc false
+  def handle_event(:cast, {:code_start, pid, fun, label, display_label}, :waiting, %{profiler: profiler, profiler_node: profiler_node, profiling_start_wait_ref: sref,
+                                                                                     current_labels: current_labels, display_labels: dlabels, cp_started: cp_started} = state) do
+    if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
+
+    display_message(profiler_node, :code_start, [display_label])
+    case do_profiling([pid], %{state | profiling_type_state: :code, code_profile_fun: fun, code_tracing_pid: pid}) do
+      {:continue, new_state} -> {:next_state, :profiling, %{new_state | display_label: display_label, code_profile_fun: nil, current_label: label, cp_started: cp_started + 1,
+                                                                        profiling_start_wait_ref: nil, current_labels: List.delete(current_labels, label), display_labels: List.delete(dlabels, display_label)}}
+      {_, new_state} -> {:stop, :normal, %{new_state | code_profile_fun: nil, profiling_start_wait_ref: nil, cp_started: cp_started + 1}}
     end
   end
 
   @doc false
-  def handle_event({:call, from}, :code_stop, :profiling, %{profiler_node: profiler_node, current_results_filename: file, code_tracing_pid: pid, code_manager_pid: cpid} = state) do
-    current_label = state.current_label
-    respond_to_code(:code, :code_profiling_stopped, [pid])
-    profiling_complete(state)
-    File.write(file, "\nLabel: #{inspect current_label}\n", [:append])
-    display_message(profiler_node, :new_line)
-    if state.code_manager_async,
-       do: respond_to_manager({:results_available, file, File.read!(file)}, cpid),
-       else:  respond_to_manager(:results_available, cpid)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, code_manager_async: false, current_label: :any_label, monitors: []}, [{:reply, from, :ok}]}
+  def handle_event(:cast, {:pseudo_code_start, label, display_label}, :profiling, %{profiler: profiler, current_labels: current_labels, display_labels: dlabels, profiling_start_wait_ref: sref, cp_started: cp_started} = state) do
+      if profiler != :cprof && is_reference(sref), do: Process.cancel_timer(sref)
+      {:keep_state, %{state | profiling_start_wait_ref: nil, current_labels: List.delete(current_labels, label), display_labels: List.delete(dlabels, display_label), cp_started: cp_started + 1}}
   end
 
   @doc false
-  def handle_event(:cast, :stop, _any_state, state) do
-    {:stop, :normal, state}
+  def handle_event({:call, from}, :code_stop, :profiling, %{cp_started: cp_started, profiler_node: profiler_node, current_results_filename: filename,
+                                                            code_manager_pid: cpid, profiler: profiler, timer_ref: tref} = state) when cp_started > 0 do
+    if profiler != :cprof && is_reference(tref), do: Process.cancel_timer(tref)
+
+    profiling_complete(:code_stop, state)
+    result_str = make_final_results(:code_stop, state)
+                 |> finalize_results_file(state)
+    display_message(profiler_node, :new_line)
+    respond_to_tester(state.test_pid, state.display_label)
+
+    results_map = %{type: :normal,
+                    label: state.display_label,
+                    filename: filename,
+                    profiler: profiler,
+                    results_data: result_str}
+
+    if state.code_manager_non_blocking do
+      respond_to_manager({:ezprofiler_results, results_map}, cpid)
+      {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, cp_started: cp_started - 1,
+                                                       timer_ref: nil, current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
+    else
+      latest_results = [results_map | state.latest_results]
+      respond_to_manager({:results_available, results_map}, cpid)
+      {:next_state, :waiting, set_next_state(%{state | pending_code_profiling: false, profiling_type_state: :normal, latest_results: latest_results,
+                                                       timer_ref: nil, cp_started: cp_started - 1, current_label: :any_label, monitors: []}), [{:reply, from, :ok}]}
+    end
+  end
+
+  @doc false
+  def handle_event({:call, from}, :code_stop, _any_state, state) do
+    {:keep_state, state, [{:reply, from, :ok}]}
+  end
+
+  @doc false
+  def handle_event(:cast, {:pseudo_code_stop, label, fun, time}, _any_state, %{cp_started: cp_started, code_manager_pid: cpid, profiler_node: profiler_node} = state) when cp_started > 0  do
+    profiling_complete(:pseudo_code_stop, %{state | temp_pseudo_data: {fun, label, time}})
+    result_str = make_final_results(:pseudo_code_stop, state)
+                 |> finalize_results_file(state)
+
+    display_message(profiler_node, :pseudo_code_profiling, [result_str])
+    respond_to_tester(state.test_pid, label)
+
+    results_map = %{type: :pseudo,
+                    label: label,
+                    filename: :no_file,
+                    profiler: :no_profiler,
+                    results_data: result_str}
+
+    if state.code_manager_non_blocking do
+      respond_to_manager({:ezprofiler_results, results_map}, cpid)
+      {:keep_state, set_next_state(%{state | cp_started: cp_started - 1})}
+    else
+      latest_results = [results_map | state.latest_results]
+      respond_to_manager({:results_available, results_map}, cpid)
+      {:keep_state, set_next_state(%{state | cp_started: cp_started - 1, latest_results: latest_results})}
+    end
+  end
+
+  @doc false
+  def handle_event({:call, from}, :stop, _any_state, _state) do
+    {:stop_and_reply, :normal, {:reply, from, :ok}}
+  end
+
+  @doc false
+  def handle_event(:info, :start_profiling_timeout, _any_state,  %{profiling_start_wait: start_time, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
+    respond_to_manager({:ezprofiler, :start_profiling_timeout}, cpid)
+    display_message(profiler_node, :start_time_exceeded, [start_time])
+    CodeProfiler.allow_profiling_async([])
+    {:next_state, :waiting, %{state | profiling_start_wait_ref: nil, current_labels: [], display_labels: [], current_label: :any_label,
+                                      pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
   def handle_event(:info, {:profiling_time_exceeded, ptime, :normal}, :profiling,  %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :time_exceeded, [ptime])
-    profiling_complete(state)
+    profiling_complete(:any, state)
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state | current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state | current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
-  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{profiler_node: profiler_node} = state) do
+  def handle_event(:info, {:profiling_time_exceeded, ptime, :code}, :profiling,  %{code_tracing_pid: pid, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     display_message(profiler_node, :time_exceeded, [ptime])
-    CodeProfiler.disallow_profiling()
-    profiling_complete(state)
+    CodeProfiler.allow_profiling_async([])
+    profiling_complete(:any, state)
+
+    result_str = make_final_results(:code_stop, state)
+                 |> finalize_results_file(state)
+
+    results_map = %{type: :unknown,
+                    label: :unknown,
+                    filename: :unknown,
+                    profiler: :unknown,
+                    results_data: result_str}
+
+    latest_results = [results_map | state.latest_results]
+
     display_message(profiler_node, :new_line)
-    {:next_state, :waiting, %{state |  current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    respond_to_manager({:ezprofiler, :profiling_timeout}, cpid)
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+
+    {:next_state, :waiting, %{state | latest_results: latest_results, current_labels: [], display_labels: [], current_label: :any_label, pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
   def handle_event(:info, {:DOWN, _, :process, profiler_pid, _rsn}, :waiting,  %{profiler_node: profiler_node, beam_profiler_pid: profiler_pid} = state) do
     display_message(profiler_node, :eprof_terminated)
     profiler_pid = start_profiler(state)
-    {:keep_state, %{state | beam_profiler_pid: profiler_pid}}
+    {:keep_state, %{state | current_labels: [], display_labels: [], beam_profiler_pid: profiler_pid}}
   end
 
   @doc false
@@ -328,16 +555,16 @@ defmodule EZProfiler.ProfilerOnTarget do
     CodeProfiler.disallow_profiling()
     profiler_pid = start_profiler(state)
     do_state_change(profiler_node, :waiting)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, beam_profiler_pid: profiler_pid, monitors: []}}
+    {:next_state, :waiting, %{state | current_labels: [], display_labels: [], pending_code_profiling: false, profiling_type_state: :normal, beam_profiler_pid: profiler_pid, monitors: []}}
   end
 
   @doc false
   def handle_event(:info, {:DOWN, _, :process, pid, _rsn}, :profiling,  %{profiler_node: profiler_node} = state) do
     display_message(profiler_node, :process_down, [pid])
-    profiling_complete(state)
+    profiling_complete(:any, state)
     CodeProfiler.disallow_profiling()
     do_state_change(profiler_node, :waiting)
-    {:next_state, :waiting, %{state | pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
+    {:next_state, :waiting, %{state | current_labels: [], display_labels: [], pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
 
   @doc false
@@ -367,7 +594,7 @@ defmodule EZProfiler.ProfilerOnTarget do
   ## Invoked when we got a request from a user / the escript to start profiling
   ##
   defp do_profiling(code_tracing_pid, %{profiler_node: profiler_node, profiler: profiler, pids_to_profile: processes,
-    profiling_type_state: profiling_type_state, max_profiling_time: max_time} = state) do
+                                        profiling_type_state: profiling_type_state, max_profiling_time: max_time} = state) do
     tracing_processes = if profiling_type_state == :code do code_tracing_pid else processes end
     new_state = log_to_file(state)
 
@@ -478,16 +705,36 @@ defmodule EZProfiler.ProfilerOnTarget do
   ##
   ## On user-request, timeout or code profiling complete we call this to get the profiling results
   ##
-  defp profiling_complete(%{profiler_node: profiler_node, current_results_filename: filename, monitors: monitors, current_label: label} = state) do
+  defp profiling_complete(:pseudo_code_stop, %{temp_pseudo_data: {fun, label, time}, current_results_filename: filename} = _state) do
+    fun_info = if fun == :no_fun,
+                  do: [module: "Code Block", name: "Code Block", arity: :none],
+                  else: Function.info(fun)
+    module = Keyword.get(fun_info, :module, "Unknown")
+    name = Keyword.get(fun_info, :name, "unknown")
+    arity = Keyword.get(fun_info, :arity, "?")
+    result = "\n***********************\n"
+        <> "Pseudo Profiling Result\n"
+        <> "-----------------------\n"
+        <> "Module: #{inspect(module)}, Function: #{inspect(name)}/#{inspect(arity)}, Took: #{inspect(time)} microseconds\n\n"
+        <> "Label: #{inspect(label)}\n"
+        <> Enum.reduce(1..80, "", fn(_,a) -> "#{a}=" end)
+        <> "\n"
+    File.write(filename, result, [:write])
+    result
+  end
+
+  defp profiling_complete(:pseudo_code_stop, _state), do: ""
+
+  defp profiling_complete(_, %{profiler_node: profiler_node, monitors: monitors, current_label: label} = state) do
     Enum.each(monitors, &Process.demonitor(&1))
     do_state_change(profiler_node, :no_change)
     try do
       do_profiling_complete(state)
       do_state_change(profiler_node, :waiting)
       if label do
-        save_filename(profiler_node, filename)
+        save_filename(profiler_node, get_actual_filename(state))
       else
-        save_filename(profiler_node, filename, label)
+        save_filename(profiler_node, get_actual_filename(state), label)
       end
     rescue
       _ ->
@@ -495,7 +742,11 @@ defmodule EZProfiler.ProfilerOnTarget do
     end
   end
 
-  defp do_profiling_complete(%{profiler: :cprof, current_results_filename: filename} = _state) do
+  defp get_actual_filename(%{label_transition?: true,  current_results_filename: @temp_results_file} = _state), do: @saved_temp_results_file
+
+  defp get_actual_filename(%{current_results_filename: filename} = _state), do: filename
+
+  defp do_profiling_complete(%{profiler: :cprof, current_results_filename: filename, display_label: label} = _state) do
     :cprof.pause()
     {_, results} = :cprof.analyse()
     :cprof.stop()
@@ -510,13 +761,15 @@ defmodule EZProfiler.ProfilerOnTarget do
       end)
     :io.fwrite(fd,"~s~n",["]"])
     :file.close(fd)
+    IO.puts("\nLabel: #{inspect(label)}")
   end
 
   ## For eprof filename is specified in :eprof.log earlier
-  defp do_profiling_complete(%{profiler: :eprof, sort: sort} = _state) do
+  defp do_profiling_complete(%{profiler: :eprof, sort: sort, display_label: label} = _state) do
     try do
       :eprof.stop_profiling()
       :eprof.analyze([sort: sort])
+      IO.puts("\nLabel: #{inspect(label)}")
     rescue
       _ -> :exception
     end
@@ -644,5 +897,65 @@ defmodule EZProfiler.ProfilerOnTarget do
         profiler_pid
     end
   end
+
+  defp set_next_state(%{current_labels: [], code_tracing_pid: pid} = state) do
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    state
+  end
+
+  defp set_next_state(%{display_labels: current_labels, label_transition?: true, code_manager_pid: cpid, code_tracing_pid: pid} = state) do
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    {_, next_state} = handle_event(:cast, {:allow_code_profiling, current_labels, cpid, true}, :waiting, state)
+    next_state
+  end
+
+  defp set_next_state(%{code_tracing_pid: pid} = state) do
+    respond_to_code(:code, :code_profiling_stopped, [pid])
+    state
+  end
+
+  defp lower_labels(labels), do:
+    Enum.map(labels, &(lower_label(&1)))
+
+  defp lower_label(label) when is_binary(label), do:
+    String.downcase(label)
+
+  defp lower_label(label), do:
+    label
+
+  defp finalize_results_file(file_data, %{current_results_filename: filename} = state) do
+    if state.label_transition? do
+      File.write(@saved_temp_results_file, file_data, [:append])
+      if state.current_labels == [], do:
+        File.cp(@saved_temp_results_file, filename)
+    end
+    file_data
+  end
+
+  defp make_final_results(:code_stop, %{current_results_filename: filename} = state) do
+    data = "\nLabel: #{inspect(state.display_label)}\n"
+           <> Enum.reduce(1..80, "", fn(_,a) -> "#{a}=" end)
+           <> "\n"
+    File.write(filename, data, [:append])
+    File.read!(filename)
+  end
+
+  defp make_final_results(_, %{current_results_filename: filename} = _state) do
+    File.read!(filename)
+  end
+
+  defp respond_to_tester(test_pid, display_label) when is_pid(test_pid) do
+    if test_pid, do:
+      send(test_pid, {:code_stop, display_label})
+  end
+
+  defp respond_to_tester(_, _), do:
+    :ok
+
+  defp allow_profiling_again(labels, %{label_transition?: true} = _state), do:
+    CodeProfiler.allow_profiling_async(labels)
+
+  defp allow_profiling_again(labels, _state), do:
+    CodeProfiler.allow_profiling_async(labels)
 
 end
