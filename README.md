@@ -151,7 +151,7 @@ This will just profile a specific function
 def foo() do
    x = function1()
    y = function2()
-   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x])
+   EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x])
 end
 ```
 Or with a label / anonymous function:
@@ -159,20 +159,20 @@ Or with a label / anonymous function:
 def foo() do
    x = function1()
    y = function2()
-   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], :my_label)
+   EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x], :my_label)
 end
 
 def foo() do
    x = function1()
    y = function2()
-   EZProfiler.CodeProfiler.function_profiling(&bar/1, [x], fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
+   EZProfiler.CodeProfiler.function_profiling(&MyModule.bar/1, [x], fn -> if should_i_profile?(foo), do: :my_label, else: :nok end)
  end
 ```
 Or in a pipelne:
 ```elixir
 def foo(data) do
    x = function1()
-   data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&baz/1, [x]) |> function2()
+   data |> bar() |> EZProfiler.CodeProfiler.pipe_profiling(&MyModule.baz/1, [x]) |> function2()
 end
 ```
 ### A word about Labels
