@@ -501,8 +501,10 @@ defmodule EZProfiler.ProfilerOnTarget do
   end
 
   @doc false
-  def handle_event(:info, :start_profiling_timeout, _any_state,  %{code_manager_pid: cpid} = state) do
+  def handle_event(:info, :start_profiling_timeout, _any_state,  %{profiling_start_wait: start_time, code_manager_pid: cpid, profiler_node: profiler_node} = state) do
     respond_to_manager({:ezprofiler, :start_profiling_timeout}, cpid)
+    display_message(profiler_node, :start_time_exceeded, [start_time])
+    CodeProfiler.allow_profiling_async([])
     {:next_state, :waiting, %{state | profiling_start_wait_ref: nil, current_labels: [], display_labels: [], current_label: :any_label,
                                       pending_code_profiling: false, profiling_type_state: :normal, monitors: []}}
   end
@@ -723,22 +725,26 @@ defmodule EZProfiler.ProfilerOnTarget do
 
   defp profiling_complete(:pseudo_code_stop, _state), do: ""
 
-  defp profiling_complete(_, %{profiler_node: profiler_node, current_results_filename: filename, monitors: monitors, current_label: label} = state) do
+  defp profiling_complete(_, %{profiler_node: profiler_node, monitors: monitors, current_label: label} = state) do
     Enum.each(monitors, &Process.demonitor(&1))
     do_state_change(profiler_node, :no_change)
     try do
       do_profiling_complete(state)
       do_state_change(profiler_node, :waiting)
       if label do
-        save_filename(profiler_node, filename)
+        save_filename(profiler_node, get_actual_filename(state))
       else
-        save_filename(profiler_node, filename, label)
+        save_filename(profiler_node, get_actual_filename(state), label)
       end
     rescue
       _ ->
         display_message(profiler_node, :profiler_problem)
     end
   end
+
+  defp get_actual_filename(%{label_transition?: true,  current_results_filename: @temp_results_file} = _state), do: @saved_temp_results_file
+
+  defp get_actual_filename(%{current_results_filename: filename} = _state), do: filename
 
   defp do_profiling_complete(%{profiler: :cprof, current_results_filename: filename, display_label: label} = _state) do
     :cprof.pause()

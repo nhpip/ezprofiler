@@ -513,6 +513,9 @@ defmodule EZProfiler do
       {:time_exceeded, [time]} ->
         IO.puts("\nProfiling time of #{inspect round(time/1000)} seconds has exceeded, will disable profiling\n")
 
+      {:start_time_exceeded, [time]} ->
+        IO.puts("\nStart profiling time of #{inspect round(time/1000)} seconds has exceeded, will disable profiling\n")
+
       :updated_mf ->
         IO.puts("\nUpdated the module and function")
 
