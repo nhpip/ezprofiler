@@ -43,6 +43,8 @@ defmodule EZProfiler.CodeProfiler do
 
   """
 
+  @stop_wait_time 2500 ## 2500*2 = 5000 ms
+
   use Agent
   alias EZProfiler.ProfilerOnTarget
 
@@ -580,7 +582,7 @@ defmodule EZProfiler.CodeProfiler do
         :code_profiling_stopped -> :code_profiling_stopped
         :code_profiling_never_started -> :code_profiling_never_started
       after
-        1000 -> :error
+        @stop_wait_time -> :error
       end
     end
   end
