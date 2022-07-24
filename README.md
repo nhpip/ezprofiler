@@ -131,6 +131,9 @@ If specified with the `--directory` option the results can be saved and the last
 **NOTE:** If `fprof` is selected as the profiler the results will not be output to screen unless `'v'` is selected.
 
 ## Code Profiling
+
+**NOTE:** Functions to be profiled should be public functions.
+
 This permits the profiling of code dynamically. The user can decorate functions or blocks of code, and when ready the user can, from the escript, start profiling that function or block of code. The decorating is quite simple, the dependency `ezprofiler_deps` should be added to your application `mix.exs` file (see below). This contains the module (`EZProfiler.CodeProfiler`) that has stub functions that you can place throughout your code that have zero run-time cost. When the profiler connects to your application this code is hot-swapped out for a module with the same name, containing the same function names. These functions contain actual working code. The run-time cost is still minimal as only a single process will be monitored at a time, the only cost to other processes is a single `gen:call` to an Elixir `Agent` if a profiling function is called. Once `ezprofiler` terminates the original "stub" module is restored, once again ensuring zero run-time cost.
 
 The application will attempt to only show functions, and functions that those functions call, that are part of your workflow. There will however be a couple of internal `ezprofiler` functions included too. These functions are at the end of the profiling run and will not impact your application. If you only wish to see the function been profiled, without `ezprofiler` and other called functions set the `--cpfo` option. Alternatively select the `--mf` option, especially if `cprof` is used as the profiler.
